@@ -1,0 +1,26 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file: .env
+    environment:
+      DATABASE_URL: sqlite:////data/cartmind.db
+      CHECKPOINT_DB: /data/checkpoints.db
+      FRONTEND_URL: http://localhost:3000
+      STORE_URL: http://127.0.0.1:8000/store
+      PLAYWRIGHT_HEADLESS: "true"
+    volumes:
+      - cartmind-data:/data
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+
+volumes:
+  cartmind-data:

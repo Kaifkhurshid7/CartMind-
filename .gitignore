@@ -36,6 +36,10 @@ npm-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# ---- Browser profile used by the agent: contains your Amazon/Flipkart cookies. NEVER commit. ----
+backend/browser_profile/
+browser_profile/
+
 # ---- Playwright artifacts ----
 backend/screenshots/
 playwright-report/
