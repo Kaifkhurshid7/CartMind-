@@ -33,6 +33,9 @@ PRIORITY_WORDS = {
     "sound": ("sound", "audio", "bass"),
 }
 
+# Specs that titles reliably state; a live listing missing one of these fails a mandatory requirement.
+LIVE_STRICT_KEYS = {"ram_gb", "storage_gb", "anc", "camera_mp", "battery_mah"}
+
 USE_CASES = ("coding", "programming", "software development", "gaming", "college", "office", "video editing",
              "travel", "gym", "music", "students", "student", "photography")
 
@@ -69,7 +72,30 @@ def _find_budget(text: str) -> float | None:
     return None
 
 
-def heuristic_extract(query: str) -> dict:
+_LEADING = re.compile(
+    r"^(?:please\s+)?(?:can you\s+)?(?:find|search for|look for|looking for|get|buy|order|show|i\s+(?:need|want|am looking for)|"
+    r"add)(?:\s+me)?\s+(?:(?:a|an|the|some|my)\b\s*)?",
+    re.I,
+)
+_CUT = re.compile(
+    r"\s+(?:under|below|within|upto|up to|less than|for|with|having|that|which|and|in|at least|around)\b|"
+    r"\s+(?:to|into)\s+(?:my|the|your)\s+(?:cart|basket|bag)\b|[,;:]|\s+-\s+",
+    re.I,
+)
+
+
+def generic_category(query: str) -> str:
+    """Product phrase for anything outside the known categories: 'paperback of "Atomic Habits" by James Clear'."""
+    first = re.split(r"(?<=[a-z0-9\"'\)])[.!?]\s", query.strip(), maxsplit=1)[0]
+    phrase = _LEADING.sub("", first.strip().rstrip(".!?"))
+    phrase = _CUT.split(phrase, maxsplit=1)[0]
+    phrase = re.sub(r"[\"“”]", "", phrase).strip(" -")
+    if len(phrase) < 3 or re.match(r"^(something|anything|stuff|things?|a product|products?|items?|it|that|this)\b", phrase, re.I):
+        return ""
+    return phrase[:80]
+
+
+def heuristic_extract(query: str, allow_generic: bool = True) -> dict:
     low = query.lower()
     category = None
     for cat, words in CATEGORY_WORDS.items():
@@ -114,7 +140,7 @@ def heuristic_extract(query: str) -> dict:
                 priorities.append(name)
 
     return {
-        "category": category or "",
+        "category": category or (generic_category(query) if allow_generic else ""),
         "budget": {"maximum": _find_budget(query), "currency": "INR"},
         "use_case": use_case,
         "requirements": reqs,
@@ -165,7 +191,7 @@ def validate(req: dict) -> tuple[bool, str]:
     if not req.get("category"):
         return False, (
             "I couldn't tell what you want to buy. Which product category are you after "
-            "(for example a laptop, headphones or a phone)?"
+            "(for example a laptop, a book, headphones or a kettle)?"
         )
     return True, ""
 
@@ -203,7 +229,12 @@ def check_spec(product: dict, name: str, value: Any) -> tuple[bool, str]:
     key = spec_key(name)
     spec = product.get("specs", {})
     parsed = parse_requirement(value)
-    if key not in spec or parsed is None:
+    if parsed is None:
+        return True, ""
+    if key not in spec:
+        # A scraped listing that never states a mandatory spec is not trusted to have it.
+        if product.get("live") and key in LIVE_STRICT_KEYS:
+            return False, f"{name} not stated in the listing"
         return True, ""
     kind, wanted = parsed
     actual = spec[key]

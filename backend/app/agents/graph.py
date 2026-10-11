@@ -39,7 +39,7 @@ def build_graph(checkpointer=None):
     g.add_edge(START, "requirements")
     g.add_edge("requirements", "validate")
     g.add_conditional_edges("validate", nodes.route_after_validate, {"research": "research", "end": END})
-    g.add_edge("research", "filter")
+    g.add_conditional_edges("research", nodes.route_after_research, {"filter": "filter", "end": END})
     g.add_conditional_edges("filter", nodes.route_after_filter, {"compare": "compare", "replan": "replan"})
     g.add_edge("replan", END)
     g.add_edge("compare", "reviews")
