@@ -81,3 +81,18 @@ def test_llm_failure_falls_back_to_rules(monkeypatch):
     monkeypatch.setattr(R, "get_llm", lambda: Broken())
     req = R.extract_requirements("headphones under 3000 with anc")
     assert req["category"] == "headphones" and req["budget"]["maximum"] == 3000
+
+
+def test_any_product_works_not_just_known_categories():
+    book = R.normalize(R.heuristic_extract(
+        'Find the paperback of "Atomic Habits" by James Clear under ₹500, with a good rating. Add it to my cart.'))
+    assert book["category"] == "paperback of atomic habits by james clear"
+    assert book["budget"]["maximum"] == 500
+    assert R.validate(book)[0]
+    kettle = R.heuristic_extract("A Prestige 1.5 litre electric kettle under ₹1,500 with 4+ stars")
+    assert kettle["category"] == "A Prestige 1.5 litre electric kettle" and kettle["budget"]["maximum"] == 1500
+
+
+def test_vague_requests_still_ask_for_clarification():
+    for vague in ("something nice please", "hi", "I want something"):
+        assert not R.validate(R.normalize(R.heuristic_extract(vague)))[0]

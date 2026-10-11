@@ -87,6 +87,29 @@ class LLMClient:
 
         raise LLMUnavailable(str(last_exc) if last_exc else "No LLM provider configured")
 
+    def decide(self, prompt: str, tools: list, system: str | None = None) -> dict | None:
+        """Ask the model to pick ONE tool call. Returns {"name": ..., "args": {...}} or None if it only chatted."""
+        messages = self._messages(prompt, system)
+        last_exc: Exception | None = None
+
+        def first_call(response) -> dict | None:
+            calls = getattr(response, "tool_calls", None) or []
+            return {"name": calls[0]["name"], "args": calls[0].get("args") or {}} if calls else None
+
+        for _ in range(max(len(self.keys), 0)):
+            try:
+                return first_call(self._gemini(self.keys.current(), 0.0).bind_tools(tools).invoke(messages))
+            except Exception as exc:  # noqa: BLE001
+                last_exc = exc
+                log.warning("Gemini tool call failed: %s", exc)
+                self.keys.rotate()
+        if self.settings.groq_api_key:
+            try:
+                return first_call(self._groq_model(0.0).bind_tools(tools).invoke(messages))
+            except Exception as exc:  # noqa: BLE001
+                last_exc = exc
+        raise LLMUnavailable(str(last_exc) if last_exc else "No LLM provider configured")
+
     def invoke_json(self, prompt: str, system: str | None = None) -> Any:
         raw = self.invoke(prompt, system=system, temperature=0.0)
         try:

@@ -48,6 +48,9 @@ class SessionOut(BaseModel):
     recommendation: dict[str, Any] = Field(default_factory=dict)
     cart_state: dict[str, Any] = Field(default_factory=dict)
     browser_state: dict[str, Any] = Field(default_factory=dict)
+    near_misses: list[dict[str, Any]] = Field(default_factory=list)
+    price_change: dict[str, Any] | None = None
+    user_prompt: str | None = None
     messages: list[dict[str, Any]] = Field(default_factory=list)
     error: str | None = None
     created_at: str | None = None
