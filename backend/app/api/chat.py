@@ -24,6 +24,8 @@ def chat(session_id: str, req: ChatRequest, background: BackgroundTasks):
     if intent == "refine":
         reply = "Got it — I'm updating your requirements and searching again."
         sessions.append_message(session_id, "assistant", reply)
+        # Flip status now so the client's next refresh already sees the agent working again.
+        sessions.update_session(session_id, status="running", current_step="requirements")
         background.add_task(runner.start_run, session_id, view["query"], view["requirements"], message)
         return ChatResponse(reply=reply, intent=intent, action="replanning")
 

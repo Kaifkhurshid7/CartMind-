@@ -6,7 +6,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 
 from app.schemas.shopping import ApproveRequest, SessionOut, StartRequest, StartResponse, StatusResponse
-from app.services import runner, sessions
+from app.services import handoff, runner, sessions
 
 router = APIRouter(prefix="/api/shopping", tags=["shopping"])
 
@@ -111,6 +111,15 @@ def execute(session_id: str, background: BackgroundTasks):
     if v["status"] != "waiting_for_approval":
         raise HTTPException(409, f"Cannot execute from status: {v['status']}. Approval is required first.")
     return approve(session_id, ApproveRequest(approved=True), background)
+
+
+@router.post("/{session_id}/continue")
+def continue_after_user_action(session_id: str):
+    """The user finished the manual step (signing in, solving a robot check) in the browser window."""
+    _view(session_id)
+    if not handoff.resume(session_id):
+        raise HTTPException(409, "The agent is not waiting for you.")
+    return {"session_id": session_id, "status": "running"}
 
 
 @router.post("/{session_id}/cancel")
