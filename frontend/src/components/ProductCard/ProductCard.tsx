@@ -10,12 +10,20 @@ const SPEC_LABEL: Record<string, (v: string | number | boolean) => string | null
   anc: (v) => (v ? 'ANC' : null),
   processor: (v) => String(v),
   type: (v) => String(v),
+  display: (v) => String(v),
 }
 
 export function specChips(p: Product): string[] {
   return Object.entries(p.specs)
     .map(([k, v]) => SPEC_LABEL[k]?.(v) ?? null)
     .filter((x): x is string => !!x)
+}
+
+const SOURCE_LABEL: Record<string, string> = {
+  amazon_in: 'Amazon.in',
+  'amazon.in': 'Amazon.in',
+  'flipkart.com': 'Flipkart',
+  cartmart: 'Demo store',
 }
 
 interface Props {
@@ -29,26 +37,34 @@ interface Props {
 export default function ProductCard({ product, highlight, actionLabel, onAction, disabled }: Props) {
   return (
     <article
-      className={`card flex flex-col gap-3 ${highlight ? 'border-brand-500/60 ring-1 ring-brand-500/40' : ''}`}
+      className={`flex flex-col gap-3 rounded-xl border bg-white p-4 ${highlight ? 'border-zinc-900 shadow-sm' : 'border-zinc-200'}`}
       data-testid="product-card"
     >
       <div className="flex items-start justify-between gap-3">
-        <div>
-          {highlight && <span className="chip mb-2 bg-brand-500/20 text-brand-400">🏆 Best match</span>}
-          <h3 className="font-semibold text-white">{product.name}</h3>
-          <p className="text-xs text-slate-400">
-            {product.brand} · {product.rating}★ ({product.review_count.toLocaleString('en-IN')} reviews)
+        <div className="min-w-0">
+          {highlight && <span className="mb-2 inline-block rounded-md bg-zinc-900 px-2 py-0.5 text-[11px] font-medium text-white">Best match</span>}
+          <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-zinc-900">{product.name}</h3>
+          <p className="mt-1 text-xs text-zinc-500">
+            {product.brand} · {product.rating > 0 ? `${product.rating}★ (${product.review_count.toLocaleString('en-IN')})` : 'No ratings'}
+          </p>
+          <p className="mt-1.5 flex items-center gap-2 text-xs">
+            {product.source && <span className="chip">{SOURCE_LABEL[product.source] ?? product.source}</span>}
+            {product.url.startsWith('http') && (
+              <a href={product.url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
+                View listing ↗
+              </a>
+            )}
           </p>
         </div>
-        <div className="text-right">
-          <div className="text-lg font-bold text-white">{inr(product.price)}</div>
-          {product.suitability != null && <div className="text-xs text-emerald-400">{Math.round(product.suitability)}% match</div>}
+        <div className="shrink-0 text-right">
+          <div className="text-base font-semibold text-zinc-900">{inr(product.price)}</div>
+          {product.suitability != null && <div className="text-xs font-medium text-emerald-600">{Math.round(product.suitability)}% match</div>}
         </div>
       </div>
 
       {product.suitability != null && (
-        <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
-          <div className="h-full rounded-full bg-gradient-to-r from-brand-500 to-emerald-400" style={{ width: `${product.suitability}%` }} />
+        <div className="h-1 overflow-hidden rounded-full bg-zinc-100">
+          <div className="h-full rounded-full bg-zinc-900" style={{ width: `${product.suitability}%` }} />
         </div>
       )}
 
