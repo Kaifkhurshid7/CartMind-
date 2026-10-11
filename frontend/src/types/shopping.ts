@@ -5,6 +5,7 @@ export type SessionStatus =
   | 'running'
   | 'waiting_for_approval'
   | 'executing'
+  | 'waiting_for_user'
   | 'price_changed'
   | 'completed'
   | 'cancelled'
@@ -50,6 +51,8 @@ export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
   timestamp: string
+  /** Structured snapshot attached to an agent turn (e.g. the recommendation it made). */
+  meta?: { type?: string; recommendation?: Recommendation; comparison?: Comparison }
 }
 
 export interface CartState {
@@ -78,7 +81,8 @@ export interface ShoppingSession {
   browser_state: Record<string, unknown>
   near_misses: NearMiss[]
   messages: ChatMessage[]
-  price_change?: { old: number; new: number }
+  price_change?: { old: number; new: number } | null
+  user_prompt?: string | null
   error: string | null
   created_at: string | null
   updated_at: string | null

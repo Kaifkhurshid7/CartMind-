@@ -13,6 +13,8 @@ export const approve = (id: string, productId: string | null, acceptPriceChange 
     .post(`/api/shopping/${id}/approve`, { approved: true, product_id: productId, accept_price_change: acceptPriceChange })
     .then((r) => r.data)
 
+export const continueSession = (id: string) => api.post(`/api/shopping/${id}/continue`).then((r) => r.data)
+
 export const cancelSession = (id: string) => api.post(`/api/shopping/${id}/cancel`).then((r) => r.data)
 
 export const sendChat = (id: string, message: string) =>
