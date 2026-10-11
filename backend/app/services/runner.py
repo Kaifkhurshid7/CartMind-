@@ -3,7 +3,7 @@
 from langgraph.types import Command
 
 from app.agents.graph import get_graph
-from app.services import sessions
+from app.services import handoff, sessions
 from app.utils.logging import get_logger
 
 log = get_logger("runner")
@@ -41,6 +41,8 @@ def resume_run(session_id: str, value: dict) -> None:
 
 def cancel(session_id: str) -> None:
     """Cancel a session. If the graph is paused at a human checkpoint, resume it with a refusal."""
+    if handoff.abort(session_id):  # the agent is waiting for the user; it stops and the graph ends
+        return
     view = sessions.session_view(session_id)
     if view and view["status"] in WAITING_STATUSES:
         resume_run(session_id, {"approved": False})
