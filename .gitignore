@@ -1,0 +1,63 @@
+# ---- Secrets / environment ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ---- Local databases / agent checkpoints ----
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+backend/checkpoints.db*
+
+# ---- Node / frontend ----
+node_modules/
+frontend/dist/
+dist/
+.vite/
+*.tsbuildinfo
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---- Playwright artifacts ----
+backend/screenshots/
+playwright-report/
+test-results/
+blob-report/
+
+# ---- RAG processed output (regenerate from knowledge_base/documents) ----
+knowledge_base/processed/*
+!knowledge_base/processed/.gitkeep
+
+# ---- Logs / temp ----
+*.log
+pip_install.log
+server.log
+tmp/
+.tmp/
+
+# ---- OS / editors ----
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
