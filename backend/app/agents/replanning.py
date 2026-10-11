@@ -35,7 +35,7 @@ def merge_requirements(current: dict, message: str) -> dict:
 
 def _heuristic_merge(current: dict, message: str) -> dict:
     merged = normalize(current)
-    found = normalize(heuristic_extract(message))
+    found = normalize(heuristic_extract(message, allow_generic=False))
     if (budget := _find_budget(message)) is not None:
         merged["budget"]["maximum"] = budget
     if found["category"] and found["category"] != merged["category"]:
