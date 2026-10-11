@@ -1,85 +1,110 @@
-import { FormEvent, useEffect, useRef, useState } from 'react'
-import { errorMessage } from '../../services/api'
-import { sendChat } from '../../services/shopping'
-import type { ChatMessage } from '../../types/shopping'
+import { ReactNode, useState } from 'react'
+import { timeAgo } from '../../services/time'
+import { CheckIcon, CopyIcon, ThumbDown, ThumbUp } from '../icons'
 
-const SUGGESTIONS = ['Why did you choose this?', 'Which one has better battery life?', 'What if I increase my budget to ₹60k?']
-
-interface Props {
-  sessionId: string
-  messages: ChatMessage[]
-  disabled?: boolean
-  onAction: (action: string | null) => void
+export function DayDivider({ label }: { label: string }) {
+  return (
+    <div className="my-6 flex items-center gap-4 text-[11px] font-medium tracking-wider text-zinc-400">
+      <span className="h-px flex-1 bg-zinc-200" />
+      {label}
+      <span className="h-px flex-1 bg-zinc-200" />
+    </div>
+  )
 }
 
-export default function Chat({ sessionId, messages, disabled, onAction }: Props) {
-  const [text, setText] = useState('')
-  const [sending, setSending] = useState(false)
-  const [err, setErr] = useState<string | null>(null)
-  const endRef = useRef<HTMLDivElement>(null)
-  useEffect(() => endRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), [messages.length, sending])
+function Byline({ name, at }: { name: string; at?: string }) {
+  return (
+    <p className="mb-1.5 text-sm">
+      <span className="font-semibold text-zinc-900">{name}</span>
+      {at && <span className="text-zinc-400"> • {timeAgo(at)}</span>}
+    </p>
+  )
+}
 
-  async function submit(message: string) {
-    if (!message.trim() || sending) return
-    setSending(true)
-    setErr(null)
-    setText('')
+/** Right-aligned grey bubble, as in the reference design. */
+export function UserMessage({ text, at }: { text: string; at?: string }) {
+  return (
+    <div className="flex justify-end">
+      <div className="max-w-[78%] rounded-2xl bg-zinc-100 px-4 py-3">
+        <Byline name="Me" at={at} />
+        <p className="whitespace-pre-wrap text-[15px] leading-6 text-zinc-800">{text}</p>
+      </div>
+    </div>
+  )
+}
+
+type Vote = 'up' | 'down' | null
+
+/** Plain left-aligned agent message with copy / thumbs actions underneath. */
+export function AgentMessage({
+  id,
+  text,
+  at,
+  children,
+}: {
+  id: string
+  text: string
+  at?: string
+  children?: ReactNode
+}) {
+  const key = `cartmind:vote:${id}`
+  const [vote, setVote] = useState<Vote>(() => {
     try {
-      const res = await sendChat(sessionId, message.trim())
-      onAction(res.action)
-    } catch (e) {
-      setErr(errorMessage(e))
-    } finally {
-      setSending(false)
+      return (localStorage.getItem(key) as Vote) || null
+    } catch {
+      return null
+    }
+  })
+  const [copied, setCopied] = useState(false)
+
+  function choose(v: Exclude<Vote, null>) {
+    const next = vote === v ? null : v
+    setVote(next)
+    try {
+      next ? localStorage.setItem(key, next) : localStorage.removeItem(key)
+    } catch {
+      /* storage unavailable */
+    }
+  }
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1200)
+    } catch {
+      /* clipboard unavailable */
     }
   }
 
-  const onSubmit = (e: FormEvent) => {
-    e.preventDefault()
-    void submit(text)
-  }
-
   return (
-    <section className="card flex flex-col" aria-label="Chat">
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">Ask CartMind</h2>
-      <div className="mb-3 max-h-80 min-h-[8rem] space-y-2 overflow-y-auto pr-1">
-        {messages.map((m, i) => (
-          <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <p
-              className={`max-w-[88%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm ${
-                m.role === 'user' ? 'bg-brand-500 text-white' : 'bg-white/10 text-slate-200'
-              }`}
-            >
-              {m.content}
-            </p>
-          </div>
-        ))}
-        {sending && <p className="animate-pulse text-xs text-slate-500">CartMind is thinking…</p>}
-        <div ref={endRef} />
-      </div>
-
-      {!disabled && messages.length > 0 && (
-        <div className="mb-2 flex flex-wrap gap-1.5">
-          {SUGGESTIONS.map((s) => (
-            <button key={s} type="button" className="chip hover:bg-white/20" onClick={() => void submit(s)}>
-              {s}
-            </button>
-          ))}
-        </div>
-      )}
-      {err && <p className="mb-2 text-xs text-rose-400">{err}</p>}
-      <form onSubmit={onSubmit} className="flex gap-2">
-        <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Ask a question or change your requirements…"
-          className="min-w-0 flex-1 rounded-xl border border-white/10 bg-ink-800 px-3 py-2 text-sm text-white outline-none placeholder:text-slate-500 focus:border-brand-500"
-          disabled={disabled}
-        />
-        <button className="btn-primary" disabled={disabled || sending || !text.trim()}>
-          Send
+    <div className="max-w-[92%]">
+      <Byline name="CartMind" at={at} />
+      <p className="whitespace-pre-wrap text-[15px] leading-6 text-zinc-800">{text}</p>
+      {children && <div className="mt-3 space-y-3">{children}</div>}
+      <div className="mt-2 flex items-center gap-0.5">
+        <button className={`icon-btn ${vote === 'up' ? '!text-zinc-900' : ''}`} aria-label="Good response" aria-pressed={vote === 'up'} onClick={() => choose('up')}>
+          <ThumbUp />
         </button>
-      </form>
-    </section>
+        <button className={`icon-btn ${vote === 'down' ? '!text-zinc-900' : ''}`} aria-label="Bad response" aria-pressed={vote === 'down'} onClick={() => choose('down')}>
+          <ThumbDown />
+        </button>
+        <button className="icon-btn" aria-label="Copy response" onClick={copy}>
+          {copied ? <CheckIcon /> : <CopyIcon />}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+export function TypingIndicator({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-2 text-sm text-zinc-500" aria-live="polite">
+      <span className="flex gap-1">
+        <i className="dot h-1.5 w-1.5 rounded-full bg-zinc-400" />
+        <i className="dot h-1.5 w-1.5 rounded-full bg-zinc-400" />
+        <i className="dot h-1.5 w-1.5 rounded-full bg-zinc-400" />
+      </span>
+      {label}
+    </div>
   )
 }

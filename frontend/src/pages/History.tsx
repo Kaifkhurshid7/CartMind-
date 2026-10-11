@@ -1,20 +1,23 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import Shell from '../components/Shell/Shell'
 import { errorMessage } from '../services/api'
 import { inr, listSessions } from '../services/shopping'
+import { timeAgo } from '../services/time'
 import type { SessionStatus, SessionSummary } from '../types/shopping'
 
 const LABEL: Record<SessionStatus, { text: string; cls: string }> = {
-  started: { text: 'Starting', cls: 'text-brand-400' },
-  running: { text: 'Working', cls: 'text-brand-400' },
-  waiting_for_approval: { text: 'Needs approval', cls: 'text-amber-300' },
-  executing: { text: 'Shopping', cls: 'text-brand-400' },
-  price_changed: { text: 'Price changed', cls: 'text-amber-300' },
-  completed: { text: 'In cart', cls: 'text-emerald-400' },
-  cancelled: { text: 'Cancelled', cls: 'text-slate-400' },
-  failed: { text: 'Failed', cls: 'text-rose-400' },
-  no_results: { text: 'No match', cls: 'text-rose-300' },
-  needs_clarification: { text: 'Needs info', cls: 'text-amber-300' },
+  started: { text: 'Starting', cls: 'bg-blue-50 text-blue-700' },
+  running: { text: 'Working', cls: 'bg-blue-50 text-blue-700' },
+  waiting_for_approval: { text: 'Needs approval', cls: 'bg-amber-50 text-amber-700' },
+  executing: { text: 'Shopping', cls: 'bg-blue-50 text-blue-700' },
+  waiting_for_user: { text: 'Needs you', cls: 'bg-amber-50 text-amber-700' },
+  price_changed: { text: 'Price changed', cls: 'bg-amber-50 text-amber-700' },
+  completed: { text: 'In cart', cls: 'bg-emerald-50 text-emerald-700' },
+  cancelled: { text: 'Cancelled', cls: 'bg-zinc-100 text-zinc-600' },
+  failed: { text: 'Failed', cls: 'bg-rose-50 text-rose-700' },
+  no_results: { text: 'No match', cls: 'bg-rose-50 text-rose-700' },
+  needs_clarification: { text: 'Needs info', cls: 'bg-amber-50 text-amber-700' },
 }
 
 export default function History() {
@@ -26,25 +29,29 @@ export default function History() {
   }, [])
 
   return (
-    <div className="mx-auto max-w-3xl space-y-3">
-      <h1 className="text-2xl font-bold text-white">Shopping history</h1>
-      {error && <p className="text-rose-400">{error}</p>}
-      {items?.length === 0 && <p className="text-slate-400">No sessions yet. Start one from the home page.</p>}
-      {items?.map((s) => {
-        const label = LABEL[s.status] ?? { text: s.status, cls: 'text-slate-400' }
-        return (
-          <Link key={s.id} to={`/session/${s.id}`} className="card block transition hover:border-brand-500/50">
-            <div className="flex items-start justify-between gap-4">
-              <p className="font-medium text-white">{s.query}</p>
-              <span className={`shrink-0 text-xs font-semibold ${label.cls}`}>{label.text}</span>
-            </div>
-            <p className="mt-1 text-sm text-slate-400">
-              {s.product_name ? `${s.product_name} · ${inr(s.price)}` : 'No product selected'}
-              {s.created_at && ` · ${new Date(s.created_at).toLocaleString()}`}
-            </p>
-          </Link>
-        )
-      })}
-    </div>
+    <Shell>
+      <div className="flex-1 overflow-y-auto px-4 py-8">
+        <div className="mx-auto w-full max-w-[640px] space-y-3">
+          <h1 className="text-xl font-semibold">Shopping history</h1>
+          {error && <p className="text-rose-600">{error}</p>}
+          {items?.length === 0 && <p className="text-zinc-500">No sessions yet. Start one from the home page.</p>}
+          {items?.map((s) => {
+            const label = LABEL[s.status] ?? { text: s.status, cls: 'bg-zinc-100 text-zinc-600' }
+            return (
+              <Link key={s.id} to={`/session/${s.id}`} className="block rounded-xl border border-zinc-200 p-4 transition hover:bg-zinc-50">
+                <div className="flex items-start justify-between gap-4">
+                  <p className="text-sm font-medium text-zinc-900">{s.query}</p>
+                  <span className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-medium ${label.cls}`}>{label.text}</span>
+                </div>
+                <p className="mt-1 text-[13px] text-zinc-500">
+                  {s.product_name ? `${s.product_name.slice(0, 60)} · ${inr(s.price)}` : 'No product selected'}
+                  {s.created_at && ` · ${timeAgo(s.created_at)}`}
+                </p>
+              </Link>
+            )
+          })}
+        </div>
+      </div>
+    </Shell>
   )
 }
