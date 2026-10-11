@@ -4,9 +4,14 @@ from langgraph.types import interrupt
 
 from app.agents import approval, comparison, recommendation, replanning, requirements, research, shopping
 from app.agents.state import ShoppingState
+from app.config import get_settings
 from app.llm import prompts
 from app.llm.gemini import get_llm
 from app.services import sessions
+from app.llm.gemini import LLMUnavailable
+from app.services import handoff
+from app.tools import amazon_tool
+from app.tools.amazon_tool import LiveSiteError
 from app.utils.helpers import format_inr
 
 
@@ -64,10 +69,37 @@ def route_after_validate(state: ShoppingState) -> str:
 def research_node(state: ShoppingState) -> dict:
     sid = state["session_id"]
     sessions.update_session(sid, current_step="research")
-    _emit(state, "research", "Searching products")
-    results = research.research(state["requirements"])
+    mode = get_settings().shopping_mode
+    _emit(state, "research", {"agent": "Starting the browsing agent", "live": "Searching Amazon.in"}.get(mode, "Searching products"))
+
+    def ask_user(message: str) -> bool:
+        return handoff.request_user_action(sid, message, get_settings().user_action_timeout)
+
+    def emit(step: str, msg: str) -> None:
+        _emit(state, step, msg)
+
+    try:
+        try:
+            results = research.research(state["requirements"], emit=emit, ask_user=ask_user)
+        except LLMUnavailable:
+            _emit(state, "research", "No AI model configured for the browsing agent, using scripted Amazon.in search", "error")
+            results = amazon_tool.search_amazon(state["requirements"], emit)
+    except research.AgentCancelled:
+        _emit(state, "research", "Cancelled", "error")
+        sessions.update_session(sid, status="cancelled", current_step="cancelled")
+        return {"search_results": [], "error": "cancelled", "current_step": "research"}
+    except (LiveSiteError, research.AgentFailed) as err:
+        message = getattr(err, "message", None) or str(err)
+        _emit(state, "research", message, "error")
+        sessions.update_session(sid, status="failed", current_step="research", error=message)
+        sessions.append_message(sid, "assistant", message)
+        return {"search_results": [], "error": message, "current_step": "research"}
     _emit(state, "research", f"Found {len(results)} products")
     return {"search_results": results, "current_step": "research"}
+
+
+def route_after_research(state: ShoppingState) -> str:
+    return "end" if state.get("error") else "filter"
 
 
 def filter_node(state: ShoppingState) -> dict:
@@ -146,7 +178,10 @@ def recommendation_node(state: ShoppingState) -> dict:
     selected = _product(state, state["selected_product_id"])
     rec = recommendation.build_recommendation(selected, state["shortlisted_products"], state["requirements"])
     sessions.update_session(sid, current_step="recommend", recommendation=rec, cart_state={}, error=None)
-    sessions.append_message(sid, "assistant", f"{rec['summary']} {rec['alternative_note']}".strip())
+    sessions.append_message(
+        sid, "assistant", f"{rec['summary']} {rec['alternative_note']}".strip(),
+        meta={"type": "recommendation", "recommendation": rec, "comparison": state.get("comparison", {})},
+    )
     _emit(state, "recommend", "Recommendation ready")
     return {"recommendation": rec, "current_step": "recommend"}
 
@@ -219,6 +254,10 @@ def shopping_node(state: ShoppingState) -> dict:
         )
         sessions.append_message(sid, "assistant", message)
         _emit(state, "done", "Product successfully added to cart")
+    elif code == "cancelled":
+        _emit(state, "browser", "Cancelled", "error")
+        sessions.update_session(sid, status="cancelled", current_step="cancelled")
+        sessions.append_message(sid, "assistant", "Cancelled. Nothing was added to your cart.")
     else:
         _emit(state, "browser", result["message"], "error")
         sessions.update_session(sid, browser_state=result["browser_state"])
@@ -228,7 +267,7 @@ def shopping_node(state: ShoppingState) -> dict:
 
 def route_after_shopping(state: ShoppingState) -> str:
     code = state["shopping_result"]["code"]
-    if code == "added":
+    if code in ("added", "cancelled"):
         return "end"
     if code == "price_changed":
         return "price_change"
