@@ -4,7 +4,7 @@ import { getSession } from '../services/shopping'
 import type { ShoppingSession } from '../types/shopping'
 import { useAgentStream } from './useAgentStream'
 
-const BUSY = new Set(['started', 'running', 'executing'])
+const BUSY = new Set(['started', 'running', 'executing', 'waiting_for_user'])
 
 export function useShoppingSession(sessionId: string | undefined) {
   const [session, setSession] = useState<ShoppingSession | null>(null)

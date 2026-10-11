@@ -1,5 +1,9 @@
-import { FormEvent, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import Composer from '../components/Chat/Composer'
+import { Avatar } from '../components/icons'
+import Shell from '../components/Shell/Shell'
+import { useHealth } from '../hooks/useHealth'
 import { errorMessage } from '../services/api'
 import { startShopping } from '../services/shopping'
 
@@ -14,9 +18,9 @@ export default function Home() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
+  const health = useHealth()
 
-  async function submit(e?: FormEvent) {
-    e?.preventDefault()
+  async function submit() {
     if (query.trim().length < 3 || loading) return
     setLoading(true)
     setError(null)
@@ -29,44 +33,44 @@ export default function Home() {
   }
 
   return (
-    <div className="mx-auto flex min-h-[70vh] max-w-2xl flex-col items-center justify-center text-center">
-      <h1 className="bg-gradient-to-r from-white to-brand-400 bg-clip-text text-5xl font-extrabold tracking-tight text-transparent sm:text-6xl">
-        CartMind
-      </h1>
-      <p className="mt-3 text-lg text-slate-300">Tell CartMind what you want. It finds the best option and shops for you.</p>
+    <Shell>
+      <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto px-4 py-10">
+        <div className="w-full max-w-[640px]">
+          <div className="mb-8 text-center">
+            <div className="mb-4 flex justify-center">
+              <Avatar size={44} />
+            </div>
+            <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">What are you looking for?</h1>
+            <p className="mt-2 text-[15px] text-zinc-500">Tell CartMind what you want. It finds the best option and shops for you.</p>
+          </div>
 
-      <form onSubmit={submit} className="card mt-10 w-full space-y-4 text-left">
-        <label htmlFor="query" className="text-sm font-medium text-slate-300">
-          What are you looking for?
-        </label>
-        <textarea
-          id="query"
-          rows={3}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) void submit(e)
-          }}
-          placeholder="I need a laptop under ₹50,000 for coding"
-          className="w-full resize-none rounded-xl border border-white/10 bg-ink-800 p-3 text-white outline-none placeholder:text-slate-500 focus:border-brand-500"
-        />
-        {error && <p className="text-sm text-rose-400">{error}</p>}
-        <button className="btn-primary w-full py-3 text-base" disabled={loading || query.trim().length < 3}>
-          {loading ? 'Starting…' : 'Start Shopping'}
-        </button>
-      </form>
+          <Composer
+            value={query}
+            onChange={setQuery}
+            onSubmit={submit}
+            health={health}
+            sending={loading}
+            autoFocus
+            placeholder="I need a laptop under ₹50,000 for coding"
+          />
+          {error && <p className="mt-3 text-sm text-rose-600">{error}</p>}
 
-      <div className="mt-6 flex flex-wrap justify-center gap-2">
-        {EXAMPLES.map((ex) => (
-          <button key={ex} className="chip max-w-xs truncate hover:bg-white/20" title={ex} onClick={() => setQuery(ex)}>
-            {ex}
-          </button>
-        ))}
+          <div className="mt-5 flex flex-col items-stretch gap-2">
+            {EXAMPLES.map((ex) => (
+              <button
+                key={ex}
+                className="rounded-xl border border-zinc-200 px-4 py-2.5 text-left text-sm text-zinc-600 transition hover:bg-zinc-50"
+                onClick={() => setQuery(ex)}
+              >
+                {ex}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
-
-      <p className="mt-10 text-xs text-slate-500">
-        CartMind always asks for your approval before acting and stops before payment.
+      <p className="pb-3 text-center text-[11px] text-zinc-400">
+        CartMind asks for your approval before acting and always stops before payment.
       </p>
-    </div>
+    </Shell>
   )
 }
