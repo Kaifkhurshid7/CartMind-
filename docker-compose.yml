@@ -9,7 +9,8 @@ services:
       CHECKPOINT_DB: /data/checkpoints.db
       FRONTEND_URL: http://localhost:3000
       STORE_URL: http://127.0.0.1:8000/store
-      PLAYWRIGHT_HEADLESS: "true"
+
+      SHOPPING_MODE: live
     volumes:
       - cartmind-data:/data
     ports:
