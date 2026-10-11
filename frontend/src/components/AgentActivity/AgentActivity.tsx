@@ -1,41 +1,51 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import type { AgentEvent } from '../../types/agent'
 import type { SessionStatus } from '../../types/shopping'
+import { ChevronDown } from '../icons'
 
-const ICON: Record<string, { glyph: string; cls: string }> = {
-  done: { glyph: '✓', cls: 'text-emerald-400' },
-  error: { glyph: '✕', cls: 'text-rose-400' },
-  waiting: { glyph: '⏳', cls: 'text-amber-300' },
-  running: { glyph: '●', cls: 'text-brand-400' },
+const GLYPH: Record<string, { g: string; cls: string }> = {
+  done: { g: '✓', cls: 'text-emerald-600' },
+  error: { g: '✕', cls: 'text-rose-600' },
+  waiting: { g: '⏳', cls: 'text-amber-600' },
+  running: { g: '●', cls: 'text-blue-600' },
 }
 
-export default function AgentActivity({ events, status }: { events: AgentEvent[]; status?: SessionStatus }) {
-  const endRef = useRef<HTMLDivElement>(null)
-  useEffect(() => endRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), [events.length])
+const BUSY = new Set(['started', 'running', 'executing', 'waiting_for_user'])
 
-  const working = status === 'running' || status === 'started' || status === 'executing'
+/** Collapsible step list: open while the agent works, tucked away once it is idle. */
+export default function AgentActivity({ events, status }: { events: AgentEvent[]; status?: SessionStatus }) {
+  const busy = !!status && BUSY.has(status)
+  const [open, setOpen] = useState(true)
+  useEffect(() => setOpen(busy), [busy])
+
+  if (events.length === 0) return null
+  const last = events[events.length - 1]
 
   return (
-    <section className="card" aria-label="Agent activity">
-      <header className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400">Agent Activity</h2>
-        {working && <span className="chip animate-pulse text-brand-400">working…</span>}
-      </header>
-      <ol className="max-h-72 space-y-1.5 overflow-y-auto pr-1 text-sm">
-        {events.length === 0 && <li className="text-slate-500">Waiting for the agent to start…</li>}
-        {events.map((e, i) => {
-          // An old "waiting" entry is resolved as soon as anything newer arrives.
-          const resolved = e.status === 'waiting' && i < events.length - 1
-          const icon = ICON[resolved ? 'done' : e.status] ?? ICON.done
-          return (
-            <li key={e.id} className="flex gap-2">
-              <span className={`w-4 shrink-0 text-center ${icon.cls}`}>{icon.glyph}</span>
-              <span className={e.status === 'error' ? 'text-rose-300' : 'text-slate-300'}>{e.message}</span>
-            </li>
-          )
-        })}
-        <div ref={endRef} />
-      </ol>
+    <section className="rounded-xl border border-zinc-200 bg-zinc-50/60" aria-label="Agent activity">
+      <button className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left text-sm" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+        <span className="font-medium text-zinc-800">
+          Agent activity <span className="font-normal text-zinc-400">· {events.length} steps</span>
+        </span>
+        <span className="flex min-w-0 items-center gap-2 text-xs text-zinc-500">
+          {!open && <span className="truncate">{last.message}</span>}
+          <ChevronDown className={`shrink-0 transition ${open ? 'rotate-180' : ''}`} />
+        </span>
+      </button>
+      {open && (
+        <ol className="max-h-64 space-y-1.5 overflow-y-auto border-t border-zinc-200 px-4 py-3 text-[13px]">
+          {events.map((e, i) => {
+            const resolved = e.status === 'waiting' && i < events.length - 1
+            const icon = GLYPH[resolved ? 'done' : e.status] ?? GLYPH.done
+            return (
+              <li key={e.id} className="flex gap-2.5">
+                <span className={`w-4 shrink-0 text-center ${icon.cls}`}>{icon.g}</span>
+                <span className={e.status === 'error' ? 'text-rose-700' : 'text-zinc-600'}>{e.message}</span>
+              </li>
+            )
+          })}
+        </ol>
+      )}
     </section>
   )
 }

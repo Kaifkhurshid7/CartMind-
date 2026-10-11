@@ -55,13 +55,16 @@ def get_state_value(session_id: str, key: str, default: Any = None) -> Any:
         return (row.state or {}).get(key, default) if row else default
 
 
-def append_message(session_id: str, role: str, content: str) -> None:
+def append_message(session_id: str, role: str, content: str, meta: dict | None = None) -> None:
     with SessionLocal() as db:
         row = db.get(ShoppingSession, session_id)
         if row is None:
             return
         messages = list((row.state or {}).get("messages", []))
-        messages.append({"role": role, "content": content, "timestamp": datetime.utcnow().isoformat() + "Z"})
+        message = {"role": role, "content": content, "timestamp": datetime.utcnow().isoformat() + "Z"}
+        if meta:
+            message["meta"] = meta
+        messages.append(message)
         row.state = {**(row.state or {}), "messages": messages}
         db.commit()
 
@@ -138,6 +141,8 @@ def session_view(session_id: str) -> dict | None:
             "cart_state": s.get("cart_state", {}),
             "browser_state": s.get("browser_state", {}),
             "near_misses": s.get("near_misses", []),
+            "price_change": s.get("price_change") if row.status == "price_changed" else None,
+            "user_prompt": s.get("user_prompt") if row.status == "waiting_for_user" else None,
             "messages": s.get("messages", []),
             "error": s.get("error"),
             "created_at": row.created_at.isoformat() if row.created_at else None,
