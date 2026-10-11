@@ -151,5 +151,8 @@ def analyze_reviews(products: list[dict], reviews: dict[str, dict]) -> dict[str,
             return {k: str(v) for k, v in data.items() if k in payload}
     except Exception as exc:  # noqa: BLE001
         log.info("LLM review summary unavailable (%s); using snippets", exc)
-    return {pid: " ".join(v["snippets"][:2]) or "No reviews available." for pid, v in payload.items()}
+    return {
+        pid: " ".join(v["snippets"][:2]) or f"Rated {v['rating']}★ on the listing (no review text available)."
+        for pid, v in payload.items()
+    }
 
