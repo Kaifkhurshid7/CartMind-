@@ -143,6 +143,10 @@ def _summary(scored: list[dict], requirements: dict) -> str:
 def analyze_reviews(products: list[dict], reviews: dict[str, dict]) -> dict[str, str]:
     payload = {p["id"]: {"name": p["name"], "rating": p["rating"], "snippets": reviews.get(p["id"], {}).get("reviews", [])}
                for p in products}
+    if not any(v["snippets"] for v in payload.values()):  # nothing to summarise: save the model call
+        return {
+            pid: f"Rated {v['rating']} stars on the listing (no review text available)." for pid, v in payload.items()
+        }
     try:
         data = get_llm().invoke_json(
             prompts.REVIEW_SUMMARY.format(reviews=json.dumps(payload, ensure_ascii=False)), system=prompts.SYSTEM

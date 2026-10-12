@@ -11,7 +11,7 @@
 ![Gemini](https://img.shields.io/badge/Google%20Gemini-LLM-4285F4?logo=googlegemini&logoColor=white)
 ![Playwright](https://img.shields.io/badge/Playwright-browser%20automation-2EAD33?logo=playwright&logoColor=white)
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
-![Tests](https://img.shields.io/badge/tests-98%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-107%20passing-brightgreen)
 
 > Describe what you want in plain language. CartMind researches the options, recommends one, and, once you approve, adds it to your cart.
 >
@@ -309,7 +309,7 @@ CartMind is designed so that the worst possible outcome is an extra item in a ca
 | Wandering | Only allow-listed domains open (`google`, `bing`, `duckduckgo`, `amazon.in/.com`, `flipkart.com`). Navigation that lands elsewhere is reversed. |
 | Hallucinated success | "I added it" is **never trusted**. The cart page is re-opened and the item must be present. |
 | Junk listings | Scraped listings need 10+ reviews and 3.5 stars or more, and a mandatory spec must be *stated* in the listing. A missing specification is treated as a failed requirement rather than an assumption. |
-| Runaway agent | Hard step budgets (research 28, shopping 18) and a timeout on every human hand-off. |
+| Runaway agent | Hard step budgets (research 20, shopping 18) and a timeout on every human hand-off. |
 | Leaked secrets | API keys live only on the backend. Your browser profile (`browser_profile/`) holds cookies and is **git-ignored**. |
 
 ---
@@ -387,7 +387,7 @@ cartmind/
 │   ├── nginx.conf
 │   └── Dockerfile
 ├── knowledge_base/documents/       # RAG source documents
-├── tests/                          # 99 tests: agents · tools · api · playwright
+├── tests/                          # 107 tests: agents · tools · api · playwright
 ├── docker-compose.yml
 ├── .env.example
 └── README.md
@@ -463,13 +463,14 @@ All settings are environment variables (see [`.env.example`](.env.example)).
 |---|---|---|
 | `GEMINI_API_KEY_1..3` | – | Gemini keys. Rotated automatically when one hits a quota limit. |
 | `GEMINI_MODEL` | `gemini-2.5-flash` | Model used for reasoning and tool-calling. |
-| `GROQ_API_KEY` / `GROQ_MODEL` | – | Optional fallback provider. |
+| `GROQ_API_KEY` / `GROQ_MODEL` | – / `llama-3.3-70b-versatile` | Optional fallback provider. Check Groq's model list and set `GROQ_MODEL` to a currently available model. |
 | `SHOPPING_MODE` | `agent` | `agent` · `live` · `demo` (see [modes](#4-operating-modes)). |
 | `AGENT_HEADLESS` | `false` | Keep `false` so you can see and assist the browser. |
 | `AGENT_BROWSER_CHANNEL` | `chrome` | Use installed Chrome; falls back to bundled Chromium. |
 | `BROWSER_PROFILE_DIR` | `backend/browser_profile` | Persistent profile (your logins). **Never commit.** |
-| `AGENT_RESEARCH_STEPS` | `28` | Max model-driven steps while researching. |
-| `AGENT_SHOPPING_STEPS` | `18` | Max steps while adding to cart. |
+| `AGENT_RESEARCH_STEPS` | `20` | Max model-driven steps while researching. |
+| `AGENT_SHOPPING_STEPS` | `18` | Max model-driven steps while adding to cart (fallback path). |
+| `AGENT_FAST_PATH` | `true` | On Amazon.in, add to cart with the built-in routine first (no model calls); the AI agent is the fallback. |
 | `USER_ACTION_TIMEOUT` | `900` | Seconds to wait for you on a login / robot check. |
 | `AGENT_ALLOWED_DOMAINS` | google, bing, duckduckgo, amazon, flipkart | Domains the agent may open. |
 | `DATABASE_URL` | `sqlite:///backend/cartmind.db` | Session database. |
@@ -479,6 +480,24 @@ All settings are environment variables (see [`.env.example`](.env.example)).
 | `PLAYWRIGHT_HEADLESS` | `true` | Headless flag for `live` / `demo` modes. |
 | `CAPTCHA_WAIT_SECONDS` | `120` | `live` mode: how long to wait for you to clear a robot check. |
 | `SEARCH_API_KEY` | – | Reserved for a future search-API source. Currently unused. |
+
+### LLM call budget
+
+Free API tiers limit requests per day, so CartMind keeps the number of model calls per task low.
+
+| Phase | Model calls | Notes |
+|---|---|---|
+| Requirement extraction | 1 | Rule-based fallback if unavailable. |
+| Research (browsing agent) | up to 20 | One per page action; stops as soon as 8 candidates are recorded. |
+| Comparison text | 1 | Scoring itself is deterministic Python. |
+| Review summary | 0 | Skipped when a listing has no review text. |
+| Recommendation text | 1 | |
+| Add to cart on Amazon.in | **0** | Built-in routine on your logged-in profile. |
+| Add to cart on other sites | up to 18 | AI agent. Also the fallback if the built-in routine fails. |
+| Each chat message | 1 | Intent routing uses rules when possible. |
+
+A typical Amazon task uses roughly **15 to 25 calls**, so 25 tasks (for example 5 test runs and 20 demo runs) fit in about 400 to 600 calls.
+Use several keys from separate Google projects and a Groq key as the fallback to stay within free limits.
 
 ---
 
@@ -511,7 +530,7 @@ Interactive OpenAPI documentation is served at `http://localhost:8000/docs`.
 backend/.venv/bin/python -m pytest          # Windows: backend\.venv\Scripts\python -m pytest
 ```
 
-**99 tests, no API key or internet needed.**
+**107 tests, no API key or internet needed.**
 
 | Area | Covered |
 |---|---|
@@ -536,7 +555,7 @@ backend/.venv/bin/python -m pytest          # Windows: backend\.venv\Scripts\pyt
 | Product unavailable / not found | Excludes it, selects the next best, **asks for approval again**. |
 | Robot check / CAPTCHA | Search engine: switches engine or site. Shop site: hands off to you. Never bypassed. |
 | Sign-in required | Hands off; resumes when you click **Continue**. |
-| LLM quota / outage | Rotates Gemini keys → Groq → rule-based fallback. |
+| LLM quota / outage | A key that exhausts its quota is parked (hours for a daily limit, about a minute for a per-minute limit) and calls go straight to the next key, then Groq, then the rule-based fallback. |
 | Step budget exhausted | Reports what it found and where it got stuck; never fakes success. |
 | Browser step fails | Reports the failed step instead of pretending it worked. |
 | Server restarts mid-approval | Checkpoints are in SQLite, so the approval can still be answered. |
