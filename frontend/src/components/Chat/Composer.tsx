@@ -1,7 +1,7 @@
 import { FormEvent, KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react'
 import { errorMessage } from '../../services/api'
 import { improvePrompt } from '../../services/shopping'
-import { ArrowUp, BagIcon, SparkIcon } from '../icons'
+import { ArrowUp, ListIcon, SparkIcon } from '../icons'
 import Popover from '../ui/Popover'
 import PromptLibrary from './PromptLibrary'
 
@@ -56,7 +56,7 @@ export default function Composer({ value, onChange, onSubmit, prompts, placehold
   }
 
   return (
-    <form onSubmit={submit} className="relative rounded-2xl border border-zinc-200 bg-white p-4 shadow-[0_2px_12px_rgba(0,0,0,0.05)]">
+    <form onSubmit={submit} className="relative rounded-2xl border border-zinc-200 bg-white p-3 shadow-[0_1px_8px_rgba(0,0,0,0.05)] transition focus-within:border-zinc-300 focus-within:shadow-[0_2px_12px_rgba(0,0,0,0.08)]">
       <Popover open={library} onClose={closeLibrary} className="bottom-full left-6 mb-2">
         <PromptLibrary
           prompts={prompts}
@@ -76,12 +76,12 @@ export default function Composer({ value, onChange, onSubmit, prompts, placehold
         disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={onKey}
-        placeholder={placeholder ?? 'Ask me anything'}
+        placeholder={placeholder ?? "Tell CartMind what you're looking to buy..."}
         aria-label="Message"
-        className="block min-h-[28px] w-full resize-none bg-transparent text-[15px] leading-7 text-zinc-900 outline-none placeholder:text-zinc-400 disabled:cursor-not-allowed"
+        className="block min-h-[28px] w-full resize-none bg-transparent px-1 text-[15px] leading-7 text-zinc-900 outline-none placeholder:text-zinc-500 disabled:cursor-not-allowed"
       />
 
-      <div className="mt-3 flex items-center justify-between gap-3">
+      <div className="mt-2 flex items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -92,7 +92,7 @@ export default function Composer({ value, onChange, onSubmit, prompts, placehold
               library ? 'border-zinc-300 bg-zinc-100 text-zinc-900' : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
             }`}
           >
-            <BagIcon width={15} height={15} />
+            <ListIcon width={15} height={15} />
             Prompt Library
           </button>
           <button
@@ -109,7 +109,7 @@ export default function Composer({ value, onChange, onSubmit, prompts, placehold
           type="submit"
           aria-label="Send message"
           disabled={disabled || sending || !value.trim()}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-30"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-white transition hover:bg-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-zinc-200 disabled:text-zinc-400"
         >
           <ArrowUp width={18} height={18} />
         </button>

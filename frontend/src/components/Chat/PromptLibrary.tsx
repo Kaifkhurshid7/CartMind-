@@ -4,9 +4,9 @@ import { CheckIcon, SearchIcon } from '../icons'
 export const STARTER_PROMPTS = [
   'Find a laptop under ₹50,000 for coding with 16GB RAM and 512GB SSD',
   'Wireless headphones under ₹3,000 with ANC and good battery life',
+  'Best smartphone under ₹25,000 with a great camera and 8GB RAM',
   'Paperback of "Atomic Habits" by James Clear under ₹500 with a good rating',
   'A 1.5 litre electric kettle under ₹1,500 rated 4 stars or more',
-  'Best smartphone under ₹25,000 with a great camera and 8GB RAM',
 ]
 
 export const FOLLOW_UP_PROMPTS = [
