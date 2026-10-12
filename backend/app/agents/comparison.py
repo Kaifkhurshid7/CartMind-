@@ -1,6 +1,8 @@
 """Deterministic suitability scoring plus a Gemini-written comparison summary."""
 
 import json
+import math
+import re
 
 from app.llm import prompts
 from app.llm.gemini import get_llm
@@ -16,11 +18,42 @@ PRIORITY_TO_CRITERION = {
 }
 
 BASE_WEIGHTS = {
-    "laptop": {"performance": 0.25, "battery": 0.2, "display": 0.1, "rating": 0.25, "value": 0.2},
-    "headphones": {"battery": 0.25, "rating": 0.35, "value": 0.25, "features": 0.15},
-    "phone": {"performance": 0.2, "battery": 0.2, "camera": 0.15, "display": 0.1, "rating": 0.2, "value": 0.15},
+    "laptop": {"performance": 0.25, "battery": 0.2, "display": 0.1, "rating": 0.25, "value": 0.2, "confidence": 0.1},
+    "headphones": {"battery": 0.25, "rating": 0.35, "value": 0.25, "features": 0.15, "confidence": 0.1},
+    "phone": {"performance": 0.2, "battery": 0.2, "camera": 0.15, "display": 0.1, "rating": 0.2, "value": 0.15, "confidence": 0.1},
 }
-DEFAULT_WEIGHTS = {"rating": 0.5, "value": 0.5}
+BASE_WEIGHTS.update({
+    "tablet": {"performance": 0.25, "battery": 0.2, "display": 0.15, "rating": 0.2, "value": 0.15, "confidence": 0.05},
+    "watch": {"battery": 0.25, "display": 0.15, "features": 0.15, "rating": 0.25, "value": 0.15, "confidence": 0.05},
+    "tv": {"display": 0.35, "features": 0.1, "rating": 0.25, "value": 0.2, "confidence": 0.1},
+    "camera": {"camera": 0.3, "features": 0.1, "rating": 0.3, "value": 0.2, "confidence": 0.1},
+    "appliance": {"features": 0.1, "rating": 0.4, "value": 0.25, "confidence": 0.25},
+    "book": {"rating": 0.5, "value": 0.2, "confidence": 0.3},
+})
+DEFAULT_WEIGHTS = {"rating": 0.4, "value": 0.4, "confidence": 0.2}
+
+# Free-text categories (anything outside laptop/phone/headphones) are mapped to a scoring family by keyword.
+FAMILY_WORDS = {
+    "tablet": ("tablet", "ipad", "tab"),
+    "watch": ("smartwatch", "smart watch", "watch", "fitness band", "smart band"),
+    "tv": ("tv", "television"),
+    "camera": ("camera", "dslr", "mirrorless", "gopro", "webcam"),
+    "book": ("book", "paperback", "hardcover", "novel", "textbook"),
+    "appliance": ("kettle", "mixer", "grinder", "toaster", "iron", "fan", "cooler", "heater", "geyser", "cooker",
+                  "fryer", "vacuum", "purifier", "blender", "juicer", "oven", "microwave", "refrigerator",
+                  "washing machine", "air conditioner", "trimmer", "shaver", "induction"),
+}
+
+
+def family(category: str | None) -> str:
+    """Scoring family for a category string: a known key, a keyword match, or '' for the generic fallback."""
+    cat = (category or "").strip().lower()
+    if cat in BASE_WEIGHTS:
+        return cat
+    for fam, words in FAMILY_WORDS.items():
+        if any(re.search(r"\b" + re.escape(w) + r"s?\b", cat) for w in words):
+            return fam
+    return ""
 
 CPU_TIERS = (("ryzen 9", 1.0), ("ryzen 7", 0.95), ("core i7", 0.95), ("m2", 0.95), ("m3", 1.0), ("ryzen 5", 0.75),
              ("core i5", 0.75), ("ryzen 3", 0.5), ("core i3", 0.5))
@@ -35,9 +68,13 @@ def _display_score(display: str) -> float:
     low = display.lower()
     if "oled" in low or "retina" in low:
         return 1.0
-    if "144hz" in low or "120hz" in low:
+    if "qled" in low or "mini led" in low:
+        return 0.95
+    if "144hz" in low or "120hz" in low or "4k" in low or "uhd" in low:
         return 0.9
-    return 0.8 if "ips" in low else 0.6
+    if "ips" in low:
+        return 0.8
+    return 0.7 if "full hd" in low or "fhd" in low else 0.6
 
 
 def _rating_score(p: dict) -> float:
@@ -48,10 +85,15 @@ def _rating_score(p: dict) -> float:
     return ((p["rating"] * n + 4.0 * 100) / (n + 100)) / 5.0
 
 
-def criteria_scores(p: dict, peers: list[dict], budget: float | None) -> dict[str, float]:
+def _confidence_score(p: dict) -> float:
+    """How much review evidence backs the rating: ~10 reviews ≈ 0.25, 1,000 ≈ 0.75, 10,000+ = 1.0."""
+    return min(1.0, math.log10(int(p.get("review_count", 0) or 0) + 1) / 4)
+
+
+def criteria_scores(p: dict, peers: list[dict], budget: float | None, default_category: str = "") -> dict[str, float]:
     s = p["specs"]
     top_battery = max((x["specs"].get("battery_hours", 0) for x in peers), default=0) or 1
-    out: dict[str, float] = {"rating": _rating_score(p)}
+    out: dict[str, float] = {"rating": _rating_score(p), "confidence": _confidence_score(p)}
     ceiling = budget or max(x["price"] for x in peers)
     out["value"] = max(0.0, min(1.0, 1 - 0.6 * (p["price"] / ceiling))) if ceiling else 0.5
 
@@ -59,7 +101,8 @@ def criteria_scores(p: dict, peers: list[dict], budget: float | None) -> dict[st
         out["battery"] = min(1.0, s["battery_hours"] / top_battery)
     elif "battery_mah" in s:
         out["battery"] = min(1.0, s["battery_mah"] / 6000)
-    category = p.get("category", "")
+    category = family(p.get("category") or default_category)
+    title_and_display = f"{p.get('name', '')} {s.get('display', '')}"
     if category == "laptop":
         gpu_bonus = 0.1 if "nvidia" in str(s.get("gpu", "")).lower() else 0.0
         out["performance"] = min(
@@ -73,11 +116,25 @@ def criteria_scores(p: dict, peers: list[dict], budget: float | None) -> dict[st
         out["display"] = _display_score(s.get("display", ""))
     elif category == "headphones":
         out["features"] = min(1.0, len(p.get("features", [])) / 4) * 0.6 + (0.4 if s.get("anc") else 0.0)
+    elif category == "tablet":
+        out["performance"] = min(1.0, 0.6 * min(s.get("ram_gb", 4) / 8, 1.0) + 0.4 * min(s.get("storage_gb", 64) / 256, 1.0))
+        out["display"] = _display_score(title_and_display)
+    elif category == "watch":
+        out["display"] = _display_score(title_and_display)
+        out["features"] = min(1.0, len(p.get("features", [])) / 4)
+    elif category == "tv":
+        out["display"] = _display_score(title_and_display)
+        out["features"] = min(1.0, len(p.get("features", [])) / 4)
+    elif category == "camera":
+        out["camera"] = min(1.0, s.get("camera_mp", 12) / 48)
+        out["features"] = min(1.0, len(p.get("features", [])) / 4)
+    elif category == "appliance":
+        out["features"] = min(1.0, len(p.get("features", [])) / 4)
     return out
 
 
 def weights_for(requirements: dict, available: set[str]) -> dict[str, float]:
-    weights = dict(BASE_WEIGHTS.get(requirements.get("category", ""), DEFAULT_WEIGHTS))
+    weights = dict(BASE_WEIGHTS.get(family(requirements.get("category")), DEFAULT_WEIGHTS))
     for pr in requirements.get("priorities", []):
         crit = PRIORITY_TO_CRITERION.get(pr.lower())
         if crit in weights:
@@ -91,7 +148,7 @@ def score_products(products: list[dict], requirements: dict) -> list[dict]:
     budget = (requirements.get("budget") or {}).get("maximum")
     scored = []
     for p in products:
-        crit = criteria_scores(p, products, budget)
+        crit = criteria_scores(p, products, budget, (requirements.get("category") or ""))
         scored.append((p, crit))
     available = set.intersection(*(set(c) for _, c in scored)) if scored else set()
     weights = weights_for(requirements, available)
@@ -101,7 +158,8 @@ def score_products(products: list[dict], requirements: dict) -> list[dict]:
         penalty = min(30, 8 * len(p.get("warnings", [])))
         out.append({**p, "suitability": round(max(0.0, total * 100 - penalty), 1),
                     "score_breakdown": {k: round(crit[k] * 100) for k in weights}})
-    out.sort(key=lambda x: -x["suitability"])
+    # Ties go to the better-evidenced product, then the cheaper one.
+    out.sort(key=lambda x: (-x["suitability"], -int(x.get("review_count", 0) or 0), x["price"]))
     return out
 
 
