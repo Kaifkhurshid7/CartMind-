@@ -463,7 +463,7 @@ All settings are environment variables (see [`.env.example`](.env.example)).
 |---|---|---|
 | `GEMINI_API_KEY_1..3` | – | Gemini keys. Rotated automatically when one hits a quota limit. |
 | `GEMINI_MODEL` | `gemini-3.8-flash` | Model used for reasoning and tool-calling. |
-| `GROQ_API_KEY` / `GROQ_MODEL` | – / `llama-3.3-70b-versatile` | Optional fallback provider. Check Groq's model list and set `GROQ_MODEL` to a currently available model. |
+| `GROQ_API_KEY` / `GROQ_API_KEY_2` / `GROQ_MODEL` | – / – / `openai/gpt-oss-120b` | Optional fallback provider; the second key is used when the first is rate-limited. Check Groq's model list if a model is retired. |
 | `SHOPPING_MODE` | `agent` | `agent` · `live` · `demo` (see [modes](#4-operating-modes)). |
 | `AGENT_HEADLESS` | `false` | Keep `false` so you can see and assist the browser. |
 | `AGENT_BROWSER_CHANNEL` | `chrome` | Use installed Chrome; falls back to bundled Chromium. |

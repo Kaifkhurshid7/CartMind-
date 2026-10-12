@@ -11,11 +11,15 @@ def execute_shopping(session_id: str, product: dict, accept_price_change: bool =
     def emit(step: str, message: str) -> None:
         sessions.emit_event(session_id, step, message, "done")
 
+    def ask_user(message: str) -> bool:
+        return handoff.request_user_action(session_id, message, get_settings().user_action_timeout)
+
     if product.get("via_agent"):
-
-        def ask_user(message: str) -> bool:
-            return handoff.request_user_action(session_id, message, get_settings().user_action_timeout)
-
         return shop_with_agent(session_id, product, emit, ask_user, accept_price_change=accept_price_change)
-    runner = run_amazon_shopping if product.get("source") == AMAZON else run_shopping
-    return runner(session_id, product, emit, accept_price_change=accept_price_change)
+    if product.get("source") == AMAZON:
+        # Scripted Amazon path (used when no AI model is reachable): still use the signed-in profile, so the item
+        # lands in the user's account cart and not in an anonymous guest cart.
+        return run_amazon_shopping(
+            session_id, product, emit, accept_price_change=accept_price_change, persistent=True, ask_user=ask_user
+        )
+    return run_shopping(session_id, product, emit, accept_price_change=accept_price_change)
