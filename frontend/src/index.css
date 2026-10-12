@@ -65,3 +65,7 @@ body { @apply m-0 overflow-hidden bg-app font-sans text-fg antialiased; }
     scroll-behavior: auto !important;
   }
 }
+
+/* Indeterminate progress bar for live agent work (real state, no fake percentages). */
+@keyframes indeterminate { 0% { transform: translateX(-100%) } 100% { transform: translateX(350%) } }
+.indeterminate { animation: indeterminate 1.4s ease-in-out infinite; }
