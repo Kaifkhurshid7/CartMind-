@@ -82,7 +82,7 @@ def test_review_summary_makes_no_model_call_without_review_text(monkeypatch):
 def test_amazon_fast_path_uses_zero_model_calls(monkeypatch):
     seen = {}
 
-    def fake_amazon(session_id, product, emit, accept_price_change=False, persistent=False):
+    def fake_amazon(session_id, product, emit, accept_price_change=False, persistent=False, ask_user=None):
         seen.update(asin=product["asin"], persistent=persistent)
         return {"ok": True, "code": "added", "message": "added", "observed_price": 100.0,
                 "browser_state": {}, "cart_state": {"items": [], "total": 100.0, "url": "x"}}

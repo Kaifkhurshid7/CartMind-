@@ -299,12 +299,28 @@ def _read_price(page: Page) -> float | None:
     return None
 
 
+def signed_in(page: Page) -> bool | None:
+    """True/False from the header greeting; None when the header is not on the page."""
+    loc = page.locator("#nav-link-accountList-nav-line-1")
+    if loc.count() == 0:
+        return None
+    return "sign in" not in loc.first.inner_text().strip().lower()
+
+
+SIGN_IN_PROMPT = (
+    "You are not signed in to Amazon in this CartMind browser window, so the item would go into a guest cart "
+    "that is NOT your account's cart. Sign in to Amazon in this window yourself (OTP and all), then click "
+    "Continue. Click Continue without signing in to use a guest cart."
+)
+
+
 def run_amazon_shopping(
     session_id: str,
     product: dict,
     emit: Callable[[str, str], None],
     accept_price_change: bool = False,
     persistent: bool = False,
+    ask_user: Callable[[str], bool] | None = None,
 ) -> dict:
     """Open the exact ASIN, verify price/stock, add to the (guest) cart and confirm it is there."""
     expected = float(product["price"])
@@ -330,6 +346,19 @@ def run_amazon_shopping(
             price = _read_price(page)
             state.update(product_url=page.url.split("?")[0], observed_name=title, observed_price=price)
             emit("browser", f"Opened: {title[:70]}")
+
+            if persistent and ask_user and signed_in(page) is False:
+                emit("browser", "Not signed in to Amazon in this window")
+                if not ask_user(SIGN_IN_PROMPT):
+                    raise LiveSiteError("cancelled", "Cancelled while waiting for you to sign in.")
+                _goto(page, f"{BASE}/dp/{asin}", emit)  # signing in navigates away; come back to the product
+                try:
+                    page.wait_for_selector("#productTitle", timeout=15_000)
+                except PlaywrightTimeout:
+                    raise LiveSiteError("not_found", "I couldn't re-open the product page after sign-in.")
+                page.wait_for_timeout(1200)
+                price = _read_price(page)
+                state["observed_price"] = price
 
             add = page.locator("#add-to-cart-button:visible")
             if add.count() == 0:
@@ -369,9 +398,11 @@ def run_amazon_shopping(
                 raise LiveSiteError("playwright_error", "The item did not appear in the cart after clicking Add to Cart.")
             sub = page.locator("#sc-subtotal-amount-buybox, #sc-subtotal-amount-activecart")
             total = parse_price(sub.first.inner_text()) if sub.count() else sum(i["price"] or 0 for i in items)
-            emit("browser", "Cart verified — stopping before payment")
+            account = signed_in(page)
+            emit("browser", "Cart verified — stopping before payment" if account is not False
+                 else "Cart verified (guest cart: not signed in) — stopping before payment")
             return result(True, "added", f"{title[:80]} has been added to your cart.",
-                          cart={"items": items, "total": total, "url": f"{BASE}/cart"})
+                          cart={"items": items, "total": total, "url": f"{BASE}/cart", "signed_in": account})
     except LiveSiteError as err:
         if err.extra.get("observed_price"):
             state["observed_price"] = err.extra["observed_price"]
