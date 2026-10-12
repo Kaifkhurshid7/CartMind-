@@ -25,7 +25,8 @@ class Settings(BaseSettings):
     llm_max_wait_seconds: int = 90
 
     groq_api_key: str = ""
-    groq_model: str = "llama-3.3-70b-versatile"
+    groq_api_key_2: str = ""
+    groq_model: str = "openai/gpt-oss-120b"
 
     search_api_key: str = ""
 
@@ -57,6 +58,11 @@ class Settings(BaseSettings):
 
     checkpoint_db: str = str(BASE_DIR / "checkpoints.db")
     knowledge_base_dir: str = str(ROOT_DIR / "knowledge_base" / "documents")
+
+    @property
+    def groq_keys(self) -> list[str]:
+        keys = [self.groq_api_key, self.groq_api_key_2]
+        return list(dict.fromkeys(k.strip() for k in keys if k and k.strip()))
 
     @property
     def gemini_keys(self) -> list[str]:
