@@ -181,21 +181,19 @@ export default function Sidebar({ health, rail, onToggleRail, onNavigate }: Prop
             aria-expanded={settingsOpen}
             aria-label="Settings"
             title="Settings"
-            className={`flex h-11 w-full items-center gap-3 whitespace-nowrap px-3 text-[14px] transition-colors duration-fast hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/30 ${
+            className={`flex h-11 w-full items-center whitespace-nowrap text-[14px] ${rail ? 'justify-center' : 'gap-3 px-3'} transition-colors duration-fast hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/30 ${
               settingsOpen ? 'bg-hover text-fg' : 'text-fg-2 hover:text-fg'
             }`}
           >
             <GearIcon width={18} height={18} className="shrink-0" />
-            <NavLabel hidden={rail}>Settings</NavLabel>
+            {!rail && <NavLabel hidden={false}>Settings</NavLabel>}
             {!rail && <ChevronDown width={14} height={14} className="ml-auto shrink-0 -rotate-90 text-fg-3" />}
           </button>
-          <div className="flex h-11 items-center gap-3 overflow-hidden px-3">
+          <div className={`flex h-11 items-center overflow-hidden ${rail ? 'justify-center' : 'gap-3 px-3'}`}>
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-active-nav text-[11px] font-semibold text-fg-2" aria-hidden="true">
               {USER_NAME.charAt(0)}
             </span>
-            <span className={`min-w-0 truncate text-[14px] font-medium text-fg transition-opacity duration-fast ${rail ? 'opacity-0' : 'opacity-100'}`}>
-              {USER_NAME}
-            </span>
+            {!rail && <span className="min-w-0 truncate text-[14px] font-medium text-fg">{USER_NAME}</span>}
           </div>
         </div>
       </div>
