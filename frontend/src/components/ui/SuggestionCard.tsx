@@ -6,9 +6,9 @@ export default function SuggestionCard({ text, icon, onPick }: { text: string; i
     <button
       type="button"
       onClick={() => onPick(text)}
-      className="flex min-h-[52px] w-full items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-left text-[14px] leading-5 text-zinc-700 transition hover:border-zinc-300 hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/30"
+      className="flex min-h-[52px] w-full items-center gap-3 rounded-control border border-line bg-white px-4 py-3 text-left text-[14px] leading-5 text-fg transition duration-fast hover:-translate-y-px hover:border-line-strong hover:bg-hover active:translate-y-0 active:bg-hover-nav focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
     >
-      <span className="shrink-0 text-zinc-400">{icon}</span>
+      <span className="shrink-0 text-fg-3">{icon}</span>
       <span className="min-w-0 flex-1">{text}</span>
     </button>
   )

@@ -178,7 +178,7 @@ export default function ShoppingSession() {
     }
     const isLatestRec = i === lastRecIndex
     thread.push(
-      <div key={`m${i}`} className="mb-5">
+      <div key={`m${i}`} className="mb-5 animate-fade-in">
         {m.role === 'user' ? (
           <UserMessage text={m.content} at={m.timestamp} />
         ) : (
