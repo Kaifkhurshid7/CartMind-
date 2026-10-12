@@ -44,7 +44,7 @@ export default function HistoryItem({ session, title, active, onNavigate, onRena
 
   return (
     <div
-      className={`group relative flex h-9 items-center rounded-lg transition ${
+      className={`group flex h-9 items-center rounded-lg transition ${
         active ? 'bg-zinc-200/70 text-zinc-900' : 'text-zinc-700 hover:bg-zinc-200/40'
       }`}
     >
@@ -62,9 +62,9 @@ export default function HistoryItem({ session, title, active, onNavigate, onRena
           <StatusDot status={session.status} />
         </span>
       </Link>
-      <span className="absolute right-1 hidden items-center gap-0.5 group-focus-within:flex group-hover:flex">
+      <span className="mr-1 hidden shrink-0 items-center gap-0.5 group-focus-within:flex group-hover:flex">
         <button
-          className="icon-btn bg-inherit"
+          className="icon-btn"
           aria-label={`Rename ${title}`}
           title="Rename"
           onClick={() => {
@@ -75,7 +75,7 @@ export default function HistoryItem({ session, title, active, onNavigate, onRena
           <PencilIcon width={14} height={14} />
         </button>
         <button
-          className="icon-btn bg-inherit hover:!text-rose-600"
+          className="icon-btn hover:!text-rose-600"
           aria-label={`Delete ${title}`}
           title="Delete"
           onClick={() => {
