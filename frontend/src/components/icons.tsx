@@ -207,3 +207,11 @@ export const MenuIcon = (p: SVGProps<SVGSVGElement>) => (
     <path d="M4 6h16M4 12h16M4 18h16" />
   </svg>
 )
+
+export const MoreIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)} fill="currentColor" stroke="none">
+    <circle cx="5" cy="12" r="1.6" />
+    <circle cx="12" cy="12" r="1.6" />
+    <circle cx="19" cy="12" r="1.6" />
+  </svg>
+)
