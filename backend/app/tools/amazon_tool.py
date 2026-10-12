@@ -241,7 +241,12 @@ def _goto(page: Page, url: str, emit=None) -> None:
 
 
 def build_query(requirements: dict) -> str:
-    parts = [requirements.get("category", "")]
+    from app.agents.requirements import CATEGORY_WORDS, generic_category
+
+    category = requirements.get("category", "")
+    if category not in CATEGORY_WORDS and requirements.get("search_text"):
+        category = generic_category(requirements["search_text"]) or category
+    parts = [category]
     for name, value in (requirements.get("requirements") or {}).items():
         n = name.lower()
         digits = re.search(r"\d+", str(value))

@@ -43,20 +43,25 @@ def research(
     return search_products.invoke({"query": requirements["category"]})
 
 
-def evaluate(product: dict, requirements: dict, budget_slack: float = 0.0) -> list[str]:
-    """Reasons a product fails the mandatory requirements (empty list = passes)."""
+def evaluate(product: dict, requirements: dict, budget_slack: float = 0.0, strict: bool = True) -> list[str]:
+    """Reasons a product fails the mandatory requirements (empty list = passes).
+
+    With strict=False a live listing is only failed by a spec it *states* and that falls short; a spec that is merely
+    not mentioned in the title is not held against it.
+    """
     reasons: list[str] = []
     maximum = (requirements.get("budget") or {}).get("maximum")
     if maximum and product["price"] > maximum * (1 + budget_slack):
         reasons.append(f"price ₹{int(product['price']):,} over budget ₹{int(maximum):,}")
     for name, value in (requirements.get("requirements") or {}).items():
-        ok, why = check_spec(product, name, value)
+        ok, why = check_spec(product, name, value, strict=strict)
         if not ok:
             reasons.append(why)
     return reasons
 
 
-# Scraped listings can be anything (ads, no-name brands, brand-new ASINs). Don't recommend what shoppers haven't vetted.
+# Scraped listings can be anything (ads, brand-new listings, no-name brands). They are still shown, but flagged
+# and ranked lower, so the shopper decides with the facts in front of them.
 LIVE_MIN_RATING = 3.5
 LIVE_MIN_REVIEWS = 10
 
@@ -64,22 +69,32 @@ LIVE_MIN_REVIEWS = 10
 def trust_issues(product: dict) -> list[str]:
     if not product.get("live"):
         return []
-    issues = []
-    if product.get("review_count", 0) < LIVE_MIN_REVIEWS:
-        issues.append(f"only {product.get('review_count', 0)} reviews (need {LIVE_MIN_REVIEWS}+)")
-    elif product.get("rating", 0) < LIVE_MIN_RATING:
-        issues.append(f"rated {product.get('rating')}★ (need {LIVE_MIN_RATING}★+)")
-    return issues
+    n = int(product.get("review_count", 0) or 0)
+    if n == 0:
+        return ["no customer reviews yet"]
+    if n < LIVE_MIN_REVIEWS:
+        return [f"only {n} review{'s' if n != 1 else ''}"]
+    if (product.get("rating") or 0) < LIVE_MIN_RATING:
+        return [f"rated {product.get('rating')} stars"]
+    return []
 
 
 def filter_products(products: list[dict], requirements: dict) -> tuple[list[dict], list[dict]]:
+    """Split into (kept, rejected).
+
+    Rejected: over budget, unavailable, or a stated spec that contradicts a mandatory requirement.
+    Kept live listings may carry `warnings` (few reviews, a spec not stated in the listing).
+    """
     kept, rejected = [], []
     for p in products:
-        reasons = evaluate(p, requirements) + trust_issues(p)
-        if reasons:
-            rejected.append({"id": p["id"], "name": p["name"], "reasons": reasons})
+        hard = evaluate(p, requirements, strict=False)
+        if hard:
+            rejected.append({"id": p["id"], "name": p["name"], "reasons": hard})
         elif not p.get("available", True):
             rejected.append({"id": p["id"], "name": p["name"], "reasons": ["currently unavailable"]})
+        elif p.get("live"):
+            unstated = [r for r in evaluate(p, requirements, strict=True) if r not in hard]
+            kept.append({**p, "warnings": [*unstated, *trust_issues(p)]})
         else:
             kept.append(p)
     return kept, rejected
