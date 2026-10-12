@@ -58,7 +58,7 @@ def test_llm_rotates_key_on_quota_then_succeeds():
                 raise RuntimeError("429 quota exceeded")
             return type("R", (), {"content": "hi"})()
 
-    client._gemini = lambda key, temperature: Model(key)
+    client._gemini = lambda key, temperature, model=None: Model(key)
     assert client.invoke("hello") == "hi"
     assert seen == ["k1", "k2"]
 

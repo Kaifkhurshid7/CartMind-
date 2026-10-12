@@ -45,12 +45,31 @@ def _live(title, price, rating, count):
                        "count": f"({count})"}, "laptop")
 
 
-def test_live_filter_enforces_stated_specs_and_trust_floor():
-    req = {"category": "laptop", "budget": {"maximum": 50000}, "requirements": {"ram": "16GB+"}}
+def test_live_filter_keeps_weak_listings_with_warnings_and_rejects_only_hard_failures():
+    req = {"category": "laptop", "budget": {"maximum": 50000}, "requirements": {"ram": "16GB+", "storage": "512GB+"}}
     good = _live("Acer 16GB RAM 512GB SSD Laptop", 40000, 4.2, 300)
     unrated = {**_live("Noname 16GB RAM 512GB SSD Laptop", 30000, 0, 0), "id": "amz-2"}
-    no_ram_stated = {**_live("Mystery Laptop 512GB SSD", 30000, 4.5, 500), "id": "amz-3"}
-    kept, rejected = filter_products([good, unrated, no_ram_stated], req)
-    assert [p["id"] for p in kept] == ["amz-B0TEST"]
-    reasons = {r["id"]: r["reasons"][0] for r in rejected}
-    assert "reviews" in reasons["amz-2"] and "not stated" in reasons["amz-3"]
+    no_storage_stated = {**_live("Mystery 16GB RAM Laptop", 30000, 4.5, 500), "id": "amz-3"}
+    over_budget = {**_live("Fancy 16GB RAM 512GB SSD Laptop", 70000, 4.5, 500), "id": "amz-4"}
+    too_little_ram = {**_live("Small 8GB RAM 512GB SSD Laptop", 30000, 4.5, 500), "id": "amz-5"}
+
+    kept, rejected = filter_products([good, unrated, no_storage_stated, over_budget, too_little_ram], req)
+    by_id = {p["id"]: p for p in kept}
+
+    assert set(by_id) == {"amz-B0TEST", "amz-2", "amz-3"}
+    assert by_id["amz-B0TEST"]["warnings"] == []
+    assert any("no customer reviews" in w for w in by_id["amz-2"]["warnings"])
+    assert any("storage" in w and "not stated" in w for w in by_id["amz-3"]["warnings"])
+    assert {r["id"] for r in rejected} == {"amz-4", "amz-5"}      # over budget / stated spec too low
+
+
+def test_warnings_rank_a_product_lower_but_do_not_hide_it():
+    from app.agents.comparison import score_products
+
+    req = {"category": "laptop", "budget": {"maximum": 50000}, "requirements": {"ram": "16GB+"}, "priorities": []}
+    solid = _live("Acer 16GB RAM 512GB SSD Laptop", 42000, 4.3, 800)
+    risky = {**_live("Noname 16GB RAM 512GB SSD Laptop", 30000, 0, 0), "id": "amz-2"}
+    kept, _ = filter_products([risky, solid], req)
+    scored = score_products(kept, req)
+    assert [p["id"] for p in scored] == ["amz-B0TEST", "amz-2"]
+    assert scored[0]["suitability"] > scored[1]["suitability"]
