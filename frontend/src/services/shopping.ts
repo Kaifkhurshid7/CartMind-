@@ -20,5 +20,8 @@ export const cancelSession = (id: string) => api.post(`/api/shopping/${id}/cance
 export const sendChat = (id: string, message: string) =>
   api.post<ChatReply>(`/api/chat/${id}`, { message }).then((r) => r.data)
 
+export const improvePrompt = (text: string) =>
+  api.post<{ prompt: string }>('/api/prompt/improve', { text }).then((r) => r.data.prompt)
+
 export const inr = (n: number | null | undefined) =>
   n == null ? '—' : `₹${Math.round(n).toLocaleString('en-IN')}`
