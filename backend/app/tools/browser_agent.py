@@ -25,7 +25,7 @@ from playwright.sync_api import sync_playwright
 
 from app.config import get_settings
 from app.llm.gemini import LLMUnavailable, get_llm
-from app.tools.amazon_tool import parse_title_specs
+from app.tools.amazon_tool import parse_title_specs, run_amazon_shopping
 from app.utils.logging import get_logger
 
 log = get_logger("browser-agent")
@@ -647,8 +647,14 @@ def research_with_agent(
     with AgentBrowser() as browser:
         emit("browser", "Opened the browser — searching the web")
         return BrowsingAgent(
-            browser, goal, RESEARCH_TOOLS, max_steps=s.agent_research_steps, emit=emit, ask_user=ask_user
+            browser, goal, RESEARCH_TOOLS, max_steps=s.agent_research_steps, emit=emit, ask_user=ask_user,
+            max_products=8,
         ).run()
+
+
+def _amazon_asin(url: str) -> str | None:
+    m = re.search(r"/(?:dp|gp/product)/([A-Z0-9]{10})", url)
+    return m.group(1) if m else None
 
 
 CART_URLS = {"amazon.in": "https://www.amazon.in/cart", "amazon.com": "https://www.amazon.com/cart",
@@ -697,6 +703,16 @@ def shop_with_agent(
         "Never click Buy Now, Proceed to Buy, Checkout or anything about payment."
     )
     result = {"ok": False, "code": "failed", "message": "", "observed_price": None, "browser_state": {}, "cart_state": {}}
+
+    # Fast path: the Amazon.in product flow is deterministic, so it needs no model calls at all.
+    asin = _amazon_asin(product.get("url", ""))
+    if asin and s.agent_fast_path and host_of(product["url"]).endswith("amazon.in"):
+        emit("browser", "Adding to cart with the built-in Amazon.in routine")
+        fast = run_amazon_shopping(session_id, {**product, "asin": asin}, emit, accept_price_change, persistent=True)
+        if fast["ok"] or fast["code"] in ("unavailable", "price_changed"):
+            return fast
+        emit("browser", "The built-in routine could not finish, handing over to the AI agent")
+
     try:
         with AgentBrowser() as browser:
             emit("browser", "Opened the browser — going to the product page")
