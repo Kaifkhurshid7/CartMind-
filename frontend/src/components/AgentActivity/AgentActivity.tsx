@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
 import type { AgentEvent } from '../../types/agent'
 import type { SessionStatus } from '../../types/shopping'
-import { ChevronDown } from '../icons'
+import { CheckIcon, ChevronDown, HourglassIcon, XIcon } from '../icons'
 
-const GLYPH: Record<string, { g: string; cls: string }> = {
-  done: { g: '✓', cls: 'text-emerald-600' },
-  error: { g: '✕', cls: 'text-rose-600' },
-  waiting: { g: '⏳', cls: 'text-amber-600' },
-  running: { g: '●', cls: 'text-blue-600' },
+const GLYPH: Record<string, { g: JSX.Element; cls: string }> = {
+  done: { g: <CheckIcon width={14} height={14} />, cls: 'text-emerald-600' },
+  error: { g: <XIcon width={14} height={14} />, cls: 'text-rose-600' },
+  waiting: { g: <HourglassIcon width={14} height={14} />, cls: 'text-amber-600' },
+  running: { g: <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-blue-600" />, cls: 'text-blue-600' },
 }
 
 const BUSY = new Set(['started', 'running', 'executing', 'waiting_for_user'])
@@ -39,7 +39,7 @@ export default function AgentActivity({ events, status }: { events: AgentEvent[]
             const icon = GLYPH[resolved ? 'done' : e.status] ?? GLYPH.done
             return (
               <li key={e.id} className="flex gap-2.5">
-                <span className={`w-4 shrink-0 text-center ${icon.cls}`}>{icon.g}</span>
+                <span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center ${icon.cls}`}>{icon.g}</span>
                 <span className={e.status === 'error' ? 'text-rose-700' : 'text-zinc-600'}>{e.message}</span>
               </li>
             )
