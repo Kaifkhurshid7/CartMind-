@@ -191,9 +191,26 @@ def _guard(page: Page, emit: Callable[[str, str], None] | None = None) -> None:
 
 
 class _Session:
+    """Fresh anonymous browser, or (persistent=True) the user's visible, logged-in profile."""
+
+    def __init__(self, persistent: bool = False) -> None:
+        self.persistent = persistent
+
     def __enter__(self) -> Page:
         self._pw = sync_playwright().start()
-        self._browser = self._pw.chromium.launch(headless=get_settings().playwright_headless)
+        s = get_settings()
+        if self.persistent:
+            common = dict(user_data_dir=s.browser_profile_dir, headless=s.agent_headless,
+                          viewport={"width": 1366, "height": 820}, locale="en-IN", timezone_id="Asia/Kolkata")
+            try:
+                ctx = self._pw.chromium.launch_persistent_context(channel=s.agent_browser_channel or None, **common)
+            except PlaywrightError:
+                ctx = self._pw.chromium.launch_persistent_context(**common)
+            self._browser = ctx  # closing the context closes the browser
+            self.page = ctx.pages[0] if ctx.pages else ctx.new_page()
+            self.page.set_default_timeout(NAV_TIMEOUT_MS)
+            return self.page
+        self._browser = self._pw.chromium.launch(headless=s.playwright_headless)
         ctx = self._browser.new_context(
             locale="en-IN", timezone_id="Asia/Kolkata", viewport={"width": 1366, "height": 900}, user_agent=USER_AGENT
         )
@@ -282,6 +299,7 @@ def run_amazon_shopping(
     product: dict,
     emit: Callable[[str, str], None],
     accept_price_change: bool = False,
+    persistent: bool = False,
 ) -> dict:
     """Open the exact ASIN, verify price/stock, add to the (guest) cart and confirm it is there."""
     expected = float(product["price"])
@@ -294,7 +312,7 @@ def run_amazon_shopping(
 
     try:
         emit("browser", "Launching isolated browser")
-        with _Session() as page:
+        with _Session(persistent) as page:
             emit("browser", "Opening the product page on Amazon.in")
             _goto(page, f"{BASE}/dp/{asin}", emit)
             try:

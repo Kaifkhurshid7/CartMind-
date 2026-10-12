@@ -36,7 +36,9 @@ class Settings(BaseSettings):
     agent_headless: bool = False
     agent_browser_channel: str = "chrome"  # use the installed Chrome; falls back to bundled Chromium
     browser_profile_dir: str = str(BASE_DIR / "browser_profile")
-    agent_research_steps: int = 28
+    agent_research_steps: int = 20
+    # Try the scripted Amazon.in add-to-cart (no LLM calls) before falling back to the AI agent.
+    agent_fast_path: bool = True
     agent_shopping_steps: int = 18
     user_action_timeout: int = 900  # seconds to wait for you to log in / solve a check
     agent_allowed_domains: str = (
