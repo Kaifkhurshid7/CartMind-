@@ -149,14 +149,24 @@ export const BagIcon = (p: SVGProps<SVGSVGElement>) => (
   </svg>
 )
 
-/** Brand mark: dark rounded square with a cart stroke. */
-export function LogoMark({ size = 26 }: { size?: number }) {
+/** Brand mark: a light, line-style shopping cart in charcoal. Same glyph everywhere; only the size changes. */
+export function LogoMark({ size = 24 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
-      <rect width="32" height="32" rx="8" fill="#18181b" />
-      <path d="M7 9h3l2.5 11h10L25 12H11" stroke="#fff" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="13" cy="24" r="1.8" fill="#fff" />
-      <circle cx="21" cy="24" r="1.8" fill="#fff" />
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.9}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="shrink-0 text-primary"
+      aria-hidden="true"
+    >
+      <circle cx="9" cy="20" r="1.3" />
+      <circle cx="18" cy="20" r="1.3" />
+      <path d="M2.5 3h2.4l2.6 12.3a2 2 0 0 0 2 1.6h8.3a2 2 0 0 0 1.9-1.5L21 7H6" />
     </svg>
   )
 }

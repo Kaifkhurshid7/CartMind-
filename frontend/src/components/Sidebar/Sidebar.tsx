@@ -20,15 +20,25 @@ interface Props {
   onNavigate: () => void
 }
 
+function modelLabel(h: Health): string {
+  if (!h.llm_configured || !h.llm_model) return 'Basic matching'
+  const m = h.llm_model.replace(/[-_]/g, ' ')
+  return m.charAt(0).toUpperCase() + m.slice(1)
+}
+
+function storesLabel(site: string): string {
+  return site.replace(/^web:\s*/i, '')
+}
+
 function SectionLabel({ children }: { children: string }) {
   return <p className="animate-fade-in px-3 pb-1 pt-4 text-[12px] font-medium uppercase tracking-wider text-fg-3">{children}</p>
 }
 
 function Row({ k, v }: { k: string; v: string }) {
   return (
-    <div className="flex items-start justify-between gap-3 py-1.5 text-[13px]">
+    <div className="flex items-start justify-between gap-4 text-[13px]">
       <span className="text-fg-3">{k}</span>
-      <span className="text-right font-medium text-fg">{v}</span>
+      <span className="min-w-0 text-right font-medium text-fg">{v}</span>
     </div>
   )
 }
@@ -151,16 +161,16 @@ export default function Sidebar({ health, rail, onToggleRail, onNavigate }: Prop
       {/* Bottom: settings + workspace */}
       <div className="relative mt-2 shrink-0 space-y-1 border-t border-line-sidebar pt-3">
         <Popover open={settingsOpen} onClose={closeSettings} className={`bottom-full mb-2 ${rail ? 'left-0 w-64' : 'inset-x-0'}`}>
-          <div className="rounded-card border border-line bg-white p-3 shadow-lg">
-            <p className="pb-1 text-[13px] font-semibold text-fg">Settings</p>
-            <div className="divide-y divide-line">
-              <Row k="Mode" v={health?.shopping_mode ?? '…'} />
-              <Row k="Model" v={health?.llm_model ?? (health ? 'none (rule-based)' : '…')} />
-              <Row k="Shop" v={health?.site ?? '…'} />
-              <Row k="AI key" v={health ? (health.llm_configured ? 'Configured' : 'Missing') : '…'} />
+          <div className="rounded-card border border-line bg-white p-4 shadow-lg">
+            <p className="text-[14px] font-semibold text-fg">{USER_NAME}</p>
+            <p className="pb-2 text-[13px] text-fg-3">Shopping workspace</p>
+            <div className="space-y-2.5 border-t border-line pt-3">
+              <Row k="Assistant" v={health ? modelLabel(health) : '…'} />
+              <Row k="Mode" v={health ? (health.shopping_mode === 'live' ? 'Live shopping' : 'Demo catalog') : '…'} />
+              <Row k="Stores" v={health ? storesLabel(health.site) : '…'} />
             </div>
-            <p className="pt-2 text-xs leading-relaxed text-fg-3">
-              Values come from the backend <code>.env</code>. CartMind never pays; it stops at the cart.
+            <p className="mt-3 border-t border-line pt-3 text-[12px] leading-relaxed text-fg-3">
+              CartMind asks before every action and never completes payment.
             </p>
           </div>
         </Popover>
