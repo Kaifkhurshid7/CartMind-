@@ -66,38 +66,38 @@ export default function Shell({ children, footer, control, title, status }: Prop
   }
 
   return (
-    <div className="flex h-dvh w-full overflow-hidden bg-white text-zinc-900">
+    <div className="flex h-dvh w-full overflow-hidden bg-app text-fg">
       {drawer && <div className="fixed inset-0 z-30 bg-zinc-900/30 md:hidden" onClick={() => setDrawer(false)} aria-hidden="true" />}
 
       <aside
         aria-label="Sidebar"
-        className={`fixed inset-y-0 left-0 z-40 h-full w-[280px] max-w-[85vw] -translate-x-full overflow-hidden border-r border-zinc-200 transition-transform duration-200 md:static md:z-auto md:max-w-none md:flex-none md:translate-x-0 md:transition-[width] ${
+        className={`fixed inset-y-0 left-0 z-40 h-full w-[280px] max-w-[85vw] -translate-x-full overflow-hidden border-r border-line-sidebar bg-sidebar transition-transform duration-200 md:static md:z-auto md:max-w-none md:flex-none md:translate-x-0 md:transition-[width] md:duration-200 ${
           drawer ? 'translate-x-0' : ''
-        } ${collapsed ? 'md:w-16' : 'md:w-[280px]'}`}
+        } ${collapsed ? 'md:w-[72px]' : 'md:w-[280px]'}`}
       >
         <Sidebar health={health} rail={rail} onToggleRail={() => setCollapsed((c) => !c)} onNavigate={() => setDrawer(false)} />
       </aside>
 
       <main className="flex h-full min-w-0 flex-1 flex-col">
-        <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-zinc-100 px-4 md:px-6">
+        <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-line px-4 md:px-6">
           <div className="flex min-w-0 items-center gap-2">
             <button className="icon-btn !h-9 !w-9 md:hidden" aria-label="Open sidebar" title="Open sidebar" onClick={() => setDrawer(true)}>
               <MenuIcon width={18} height={18} />
             </button>
             {title ? (
               <>
-                <h1 className="min-w-0 truncate text-[14px] font-medium text-zinc-800" title={title}>
+                <h1 className="min-w-0 truncate text-[14px] font-medium text-fg" title={title}>
                   {title}
                 </h1>
                 {status && (
-                  <span className="hidden shrink-0 items-center gap-1.5 text-[12px] text-zinc-500 sm:inline-flex">
+                  <span className="hidden shrink-0 items-center gap-1.5 text-[12px] text-fg-3 sm:inline-flex">
                     <StatusDot status={status} />
                     {statusInfo(status).text}
                   </span>
                 )}
               </>
             ) : (
-              <span className="text-[14px] font-medium text-zinc-800">CartMind</span>
+              <span className="text-[14px] font-medium text-fg">CartMind</span>
             )}
           </div>
 
@@ -139,7 +139,7 @@ export default function Shell({ children, footer, control, title, status }: Prop
           )}
         </header>
 
-        <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+        <div className="flex min-h-0 flex-1 animate-fade-in flex-col">{children}</div>
         {footer}
       </main>
     </div>

@@ -37,7 +37,7 @@ interface Props {
 export default function ProductCard({ product, highlight, actionLabel, onAction, disabled }: Props) {
   return (
     <article
-      className={`flex flex-col gap-3 rounded-xl border bg-white p-4 ${highlight ? 'border-zinc-900 shadow-sm' : 'border-zinc-200'}`}
+      className={`flex animate-fade-up flex-col gap-3 rounded-card border bg-white p-4 ${highlight ? 'border-primary shadow-soft' : 'border-line'}`}
       data-testid="product-card"
     >
       <div className="flex items-start justify-between gap-3">
@@ -100,7 +100,11 @@ export function CompactCard({
   onAction?: () => void
 }) {
   return (
-    <article className="flex flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white" data-testid="compact-card">
+    <article
+      className="flex animate-fade-up flex-col overflow-hidden rounded-card border border-line bg-white"
+      style={{ animationDelay: `${Math.min(index, 4) * 60}ms` }}
+      data-testid="compact-card"
+    >
       <div className={`${TINTS[index % TINTS.length]} min-h-[52px] px-3 py-2.5 text-[13px] font-semibold leading-snug text-zinc-800`}>
         <span className="line-clamp-2">{product.name}</span>
       </div>
