@@ -84,3 +84,49 @@ export default function ProductCard({ product, highlight, actionLabel, onAction,
     </article>
   )
 }
+
+const TINTS = ['bg-amber-100', 'bg-violet-100', 'bg-sky-100', 'bg-emerald-100']
+
+/** Small thumbnail-style card with a pastel header, used for alternative options. */
+export function CompactCard({
+  product,
+  index,
+  actionLabel,
+  onAction,
+}: {
+  product: Product
+  index: number
+  actionLabel?: string
+  onAction?: () => void
+}) {
+  return (
+    <article className="flex flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white" data-testid="compact-card">
+      <div className={`${TINTS[index % TINTS.length]} min-h-[52px] px-3 py-2.5 text-[13px] font-semibold leading-snug text-zinc-800`}>
+        <span className="line-clamp-2">{product.name}</span>
+      </div>
+      <div className="flex flex-1 flex-col gap-2 p-3">
+        <div className="flex items-baseline justify-between">
+          <span className="text-sm font-semibold text-zinc-900">{inr(product.price)}</span>
+          {product.suitability != null && <span className="text-xs font-medium text-emerald-600">{Math.round(product.suitability)}% match</span>}
+        </div>
+        <p className="text-xs text-zinc-500">
+          {product.rating > 0 ? `${product.rating}★ (${product.review_count.toLocaleString('en-IN')})` : 'No ratings'}
+        </p>
+        <div className="flex flex-wrap gap-1">
+          {specChips(product)
+            .slice(0, 2)
+            .map((s) => (
+              <span key={s} className="chip">
+                {s}
+              </span>
+            ))}
+        </div>
+        {actionLabel && (
+          <button className="mt-auto rounded-lg border border-zinc-200 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50" onClick={onAction}>
+            {actionLabel}
+          </button>
+        )}
+      </div>
+    </article>
+  )
+}
