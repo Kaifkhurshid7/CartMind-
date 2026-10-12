@@ -191,7 +191,6 @@ export default function Sidebar({ health, rail, onToggleRail, onNavigate }: Prop
           </span>
           <span className={`min-w-0 text-[13px] leading-tight transition-opacity duration-fast ${rail ? 'opacity-0' : 'opacity-100'}`}>
             <span className="block truncate font-medium text-fg">{USER_NAME}</span>
-            <span className="block truncate text-fg-3">{health?.site ?? 'CartMind'}</span>
           </span>
         </div>
       </div>

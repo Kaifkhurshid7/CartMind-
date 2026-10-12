@@ -4,7 +4,6 @@ import { useHealth } from '../../hooks/useHealth'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
 import { LinkIcon, MenuIcon, SlidersIcon, XIcon } from '../icons'
 import Popover from '../ui/Popover'
-import { StatusDot, statusInfo } from '../ui/StatusBadge'
 import Sidebar from '../Sidebar/Sidebar'
 
 export interface ControlProps {
@@ -16,9 +15,8 @@ interface Props {
   children: ReactNode
   footer?: ReactNode
   control?: ControlProps
-  /** Conversation title and session status for the top bar. */
+  /** Conversation title for the top bar. */
   title?: string
-  status?: string
 }
 
 const KEY = 'cartmind:sidebar-collapsed'
@@ -32,7 +30,7 @@ function loadCollapsed(): boolean {
 }
 
 /** App frame: sidebar (rail on desktop, drawer on mobile), compact top bar, content, optional footer. */
-export default function Shell({ children, footer, control, title, status }: Props) {
+export default function Shell({ children, footer, control, title }: Props) {
   const health = useHealth()
   const isDesktop = useMediaQuery('(min-width: 768px)')
   const [collapsed, setCollapsed] = useState(loadCollapsed)
@@ -89,12 +87,6 @@ export default function Shell({ children, footer, control, title, status }: Prop
                 <h1 className="min-w-0 truncate text-[14px] font-medium text-fg" title={title}>
                   {title}
                 </h1>
-                {status && (
-                  <span className="hidden shrink-0 items-center gap-1.5 text-[12px] text-fg-3 sm:inline-flex">
-                    <StatusDot status={status} />
-                    {statusInfo(status).text}
-                  </span>
-                )}
               </>
             ) : (
               <span className="text-[14px] font-medium text-fg">CartMind</span>

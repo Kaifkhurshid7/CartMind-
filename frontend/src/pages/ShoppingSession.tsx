@@ -226,7 +226,7 @@ export default function ShoppingSession() {
   )
 
   return (
-    <Shell footer={footer} title={prefs.titles[id] ?? session.query} status={status} control={{ busy, onCancel: () => void run(() => cancelSession(id)) }}>
+    <Shell footer={footer} title={prefs.titles[id] ?? session.query} control={{ busy, onCancel: () => void run(() => cancelSession(id)) }}>
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 md:px-6">
         <div className="mx-auto w-full max-w-[760px]">
           {thread.map((el, i) => (
