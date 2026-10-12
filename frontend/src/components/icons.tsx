@@ -221,3 +221,23 @@ export const ExternalIcon = (p: SVGProps<SVGSVGElement>) => (
     <path d="M7 17L17 7M8 7h9v9" />
   </svg>
 )
+
+export const LaptopIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}>
+    <rect x="4" y="5" width="16" height="11" rx="1.5" />
+    <path d="M2 19h20" />
+  </svg>
+)
+export const HeadphonesIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}>
+    <path d="M4 14v-2a8 8 0 0 1 16 0v2" />
+    <rect x="3" y="14" width="4" height="6" rx="1.5" />
+    <rect x="17" y="14" width="4" height="6" rx="1.5" />
+  </svg>
+)
+export const PhoneIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}>
+    <rect x="7" y="2.5" width="10" height="19" rx="2" />
+    <path d="M11 18.5h2" />
+  </svg>
+)

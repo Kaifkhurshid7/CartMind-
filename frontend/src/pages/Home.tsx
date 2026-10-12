@@ -2,16 +2,16 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Composer from '../components/Chat/Composer'
 import { STARTER_PROMPTS } from '../components/Chat/PromptLibrary'
-import { BagIcon, ChatIcon, LogoMark, SparkIcon } from '../components/icons'
+import { HeadphonesIcon, LaptopIcon, LogoMark, PhoneIcon } from '../components/icons'
 import Shell from '../components/Shell/Shell'
 import SuggestionCard from '../components/ui/SuggestionCard'
 import { errorMessage } from '../services/api'
 import { startShopping } from '../services/shopping'
 
-const SUGGESTION_ICONS = [
-  <ChatIcon key="a" width={16} height={16} />,
-  <SparkIcon key="b" width={16} height={16} />,
-  <BagIcon key="c" width={16} height={16} />,
+const SUGGESTIONS = [
+  { icon: <LaptopIcon width={18} height={18} />, title: 'Laptop for coding', meta: 'Under ₹50,000 · 16GB RAM · 512GB SSD', prompt: STARTER_PROMPTS[0] },
+  { icon: <HeadphonesIcon width={18} height={18} />, title: 'Wireless headphones', meta: 'Under ₹3,000 · ANC · long battery', prompt: STARTER_PROMPTS[1] },
+  { icon: <PhoneIcon width={18} height={18} />, title: 'Camera smartphone', meta: 'Under ₹25,000 · 8GB RAM', prompt: STARTER_PROMPTS[2] },
 ]
 
 export default function Home() {
@@ -57,9 +57,9 @@ export default function Home() {
           />
           {error && <p className="mt-3 text-sm text-rose-600">{error}</p>}
 
-          <div className="mt-6 space-y-2.5">
-            {STARTER_PROMPTS.slice(0, 3).map((p, i) => (
-              <SuggestionCard key={p} text={p} onPick={setQuery} icon={SUGGESTION_ICONS[i]} />
+          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+            {SUGGESTIONS.map((c) => (
+              <SuggestionCard key={c.title} icon={c.icon} title={c.title} meta={c.meta} prompt={c.prompt} onPick={setQuery} />
             ))}
           </div>
         </div>
