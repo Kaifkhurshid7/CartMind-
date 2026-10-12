@@ -247,7 +247,7 @@ def shopping_node(state: ShoppingState) -> dict:
     code = result["code"]
 
     if result["ok"]:
-        message = f"✅ {product['name']} has been added to your cart. I stopped before payment — you can check out yourself."
+        message = f"{product['name']} has been added to your cart. I stopped before payment — you can check out yourself."
         sessions.update_session(
             sid, status="completed", current_step="done", cart_state=result["cart_state"],
             browser_state=result["browser_state"], error=None,

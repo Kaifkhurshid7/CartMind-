@@ -1,4 +1,5 @@
 import { inr } from '../../services/shopping'
+import { CheckIcon } from '../icons'
 import type { ShoppingSession } from '../../types/shopping'
 
 export default function CartStatus({ session }: { session: ShoppingSession }) {
@@ -7,7 +8,10 @@ export default function CartStatus({ session }: { session: ShoppingSession }) {
   if (status === 'completed') {
     return (
       <section className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4" data-testid="cart-success">
-        <h2 className="text-sm font-semibold text-emerald-800">✓ Product successfully added to cart</h2>
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-emerald-800">
+          <CheckIcon width={16} height={16} />
+          Product successfully added to cart
+        </h2>
         <ul className="mt-2 space-y-1 text-[13px] text-zinc-700">
           {(cart.items ?? []).map((i) => (
             <li key={i.product_id} className="flex justify-between gap-4">
