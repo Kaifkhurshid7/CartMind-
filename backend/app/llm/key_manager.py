@@ -33,6 +33,13 @@ class KeyManager:
             return False
         return True
 
+    def all_keys(self) -> list[str]:
+        return list(self._keys)
+
+    def is_cooling(self, key: str) -> bool:
+        with self._lock:
+            return self._is_cooling(key)
+
     @property
     def usable(self) -> bool:
         with self._lock:
@@ -63,6 +70,18 @@ class KeyManager:
 def is_quota_error(exc: Exception) -> bool:
     text = f"{type(exc).__name__} {exc}".lower()
     return any(m in text for m in ("429", "quota", "resource_exhausted", "resourceexhausted", "rate limit", "rate_limit"))
+
+
+def is_permanent_error(exc: Exception) -> bool:
+    """The key/project itself is refused: retrying will not help until the user fixes it."""
+    text = f"{type(exc).__name__} {exc}".lower()
+    return any(
+        m in text
+        for m in (
+            "denied access", "permission_denied", "permissiondenied", "api key not valid", "api_key_invalid",
+            "no longer available to new users", "has been suspended",
+        )
+    )
 
 
 def cooldown_seconds(exc: Exception) -> float:

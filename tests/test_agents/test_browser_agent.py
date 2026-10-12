@@ -318,3 +318,48 @@ def test_handoff_abort_and_timeout_return_false():
     assert out["ok"] is False
     assert handoff.request_user_action(_session(), "x", 0.2) is False  # timed out
     assert handoff.resume("nobody") is False
+
+
+def test_batch_report_records_all_products_in_one_call_and_resolves_relative_links(agent_env):
+    base = agent_env["base"]
+
+    def policy(prompt, n):
+        if n == 1:
+            return call("Goto", url=f"{base}/search?q=headphones")
+        if n == 2:
+            return call(
+                "ReportProducts",
+                products=[
+                    {"name": "Sony WH-CH720N Wireless ANC", "price_inr": 4799, "url": "/store/product/hp-001", "rating": 4.4,
+                     "review_count": 8420, "specs": "ANC, 35 hours"},
+                    {"name": "JBL Tune 770NC", "price_inr": 4999, "url": "/store/product/hp-003", "rating": 4.3,
+                     "review_count": 5140},
+                ],
+            )
+        return call("Finish", outcome="done", summary="ok")
+
+    llm = agent_env["install"](policy)
+    with AgentBrowser(headless=True) as browser:
+        out = BrowsingAgent(browser, "g", RESEARCH_TOOLS, max_steps=6, emit=agent_env["emit"],
+                            ask_user=agent_env["ask_no"], category="headphones").run()
+    assert len(out.products) == 2 and llm.calls == 3
+    assert out.products[0]["url"].startswith("http") and out.products[0]["url"].endswith("/store/product/hp-001")
+    assert all(p["category"] == "headphones" for p in out.products)
+
+
+def test_research_stops_as_soon_as_enough_candidates_are_recorded(agent_env):
+    base = agent_env["base"]
+    items = [{"name": f"Product {i}", "price_inr": 100 + i, "url": f"{base}/product/hp-00{i}"} for i in range(1, 4)]
+
+    def policy(prompt, n):
+        if n == 1:
+            return call("Goto", url=base)
+        if n == 2:
+            return call("ReportProducts", products=items)
+        raise AssertionError("the agent should have stopped after reaching max_products")
+
+    agent_env["install"](policy)
+    with AgentBrowser(headless=True) as browser:
+        out = BrowsingAgent(browser, "g", RESEARCH_TOOLS, max_steps=10, emit=agent_env["emit"],
+                            ask_user=agent_env["ask_no"], max_products=3).run()
+    assert out.outcome == "done" and len(out.products) == 3
