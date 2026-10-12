@@ -11,7 +11,7 @@
 ![Gemini](https://img.shields.io/badge/Google%20Gemini-LLM-4285F4?logo=googlegemini&logoColor=white)
 ![Playwright](https://img.shields.io/badge/Playwright-browser%20automation-2EAD33?logo=playwright&logoColor=white)
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
-![Tests](https://img.shields.io/badge/tests-107%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-109%20passing-brightgreen)
 
 > Describe what you want in plain language. CartMind researches the options, recommends one, and, once you approve, adds it to your cart.
 >
@@ -387,7 +387,7 @@ cartmind/
 │   ├── nginx.conf
 │   └── Dockerfile
 ├── knowledge_base/documents/       # RAG source documents
-├── tests/                          # 107 tests: agents · tools · api · playwright
+├── tests/                          # 109 tests: agents · tools · api · playwright
 ├── docker-compose.yml
 ├── .env.example
 └── README.md
@@ -519,6 +519,7 @@ Interactive OpenAPI documentation is served at `http://localhost:8000/docs`.
 | `POST` | `/api/chat/{id}` | Message → intent routed to **question**, **refine** (re-plan), **approve** (opens the card) or **cancel** |
 | `GET` | `/api/shopping/sessions` | History |
 | `GET` | `/api/health` | LLM / mode / readiness |
+| `POST` | `/api/prompt/improve` | Rewrite a request more precisely (one model call) |
 | `GET` | `/store/*` | The offline demo shopping site |
 
 ---
@@ -530,7 +531,7 @@ Interactive OpenAPI documentation is served at `http://localhost:8000/docs`.
 backend/.venv/bin/python -m pytest          # Windows: backend\.venv\Scripts\python -m pytest
 ```
 
-**107 tests, no API key or internet needed.**
+**109 tests, no API key or internet needed.**
 
 | Area | Covered |
 |---|---|
