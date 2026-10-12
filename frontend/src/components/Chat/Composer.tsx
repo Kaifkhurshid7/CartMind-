@@ -43,7 +43,11 @@ export default function Composer({ value, onChange, onSubmit, prompts, placehold
   }
 
   async function improve() {
-    if (!value.trim() || improving) return
+    if (improving) return
+    if (!value.trim()) {
+      setNote('Write what you want to buy first, then I can improve it.')
+      return
+    }
     setImproving(true)
     setNote(null)
     try {
@@ -56,7 +60,7 @@ export default function Composer({ value, onChange, onSubmit, prompts, placehold
   }
 
   return (
-    <form onSubmit={submit} className="relative rounded-2xl border border-zinc-200 bg-white p-3 shadow-[0_1px_8px_rgba(0,0,0,0.05)] transition focus-within:border-zinc-300 focus-within:shadow-[0_2px_12px_rgba(0,0,0,0.08)]">
+    <form onSubmit={submit} className="relative rounded-card border border-line bg-white p-3 shadow-composer transition-colors duration-fast focus-within:border-line-strong focus-within:ring-2 focus-within:ring-primary/5">
       <Popover open={library} onClose={closeLibrary} className="bottom-full left-6 mb-2">
         <PromptLibrary
           prompts={prompts}
@@ -78,7 +82,7 @@ export default function Composer({ value, onChange, onSubmit, prompts, placehold
         onKeyDown={onKey}
         placeholder={placeholder ?? "Tell CartMind what you're looking to buy..."}
         aria-label="Message"
-        className="block min-h-[28px] w-full resize-none bg-transparent px-1 text-[15px] leading-7 text-zinc-900 outline-none placeholder:text-zinc-500 disabled:cursor-not-allowed"
+        className="block min-h-[28px] w-full resize-none bg-transparent px-1 text-[15px] leading-7 text-fg outline-none placeholder:text-placeholder disabled:cursor-not-allowed"
       />
 
       <div className="mt-2 flex items-center justify-between gap-3">
@@ -88,8 +92,8 @@ export default function Composer({ value, onChange, onSubmit, prompts, placehold
             onClick={() => setLibrary((o) => !o)}
             aria-haspopup="dialog"
             aria-expanded={library}
-            className={`inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-[13px] font-medium transition ${
-              library ? 'border-zinc-300 bg-zinc-100 text-zinc-900' : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
+            className={`inline-flex items-center gap-2 rounded-control border px-3 py-1.5 text-[13px] font-medium transition-colors duration-fast focus-ring ${
+              library ? 'border-line-strong bg-hover text-fg' : 'border-line bg-white text-fg-2 hover:bg-hover hover:text-fg'
             }`}
           >
             <ListIcon width={15} height={15} />
@@ -98,8 +102,8 @@ export default function Composer({ value, onChange, onSubmit, prompts, placehold
           <button
             type="button"
             onClick={improve}
-            disabled={!value.trim() || improving || disabled}
-            className="inline-flex items-center gap-2 rounded-xl px-3 py-1.5 text-[13px] font-medium text-zinc-600 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-40"
+            disabled={improving || disabled}
+            className="inline-flex items-center gap-2 rounded-control px-3 py-1.5 text-[13px] font-medium text-fg-2 transition-colors duration-fast hover:bg-hover hover:text-fg focus-ring disabled:cursor-not-allowed disabled:text-disabled-fg"
           >
             <SparkIcon width={15} height={15} className={improving ? 'animate-pulse' : ''} />
             {improving ? 'Improving…' : 'Improve Prompt'}
@@ -109,12 +113,12 @@ export default function Composer({ value, onChange, onSubmit, prompts, placehold
           type="submit"
           aria-label="Send message"
           disabled={disabled || sending || !value.trim()}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-white transition hover:bg-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-zinc-200 disabled:text-zinc-400"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-white transition-colors duration-fast hover:bg-primary-hover active:bg-primary-active focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-disabled-bg disabled:text-disabled-fg"
         >
           <ArrowUp width={18} height={18} />
         </button>
       </div>
-      {note && <p className="mt-2 text-xs text-rose-600">{note}</p>}
+      {note && <p className="mt-2 px-1 text-xs text-fg-3" role="status">{note}</p>}
     </form>
   )
 }

@@ -2,18 +2,51 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { color-scheme: light; }
+:root {
+  color-scheme: light;
+
+  /* surfaces */
+  --c-app: 255 255 255;
+  --c-sidebar: 247 247 246;
+  --c-surface: 255 255 255;
+
+  /* text */
+  --c-fg: 24 24 27;
+  --c-fg-2: 82 82 91;
+  --c-fg-3: 113 113 122;
+  --c-placeholder: 146 146 155;
+
+  /* borders */
+  --c-line: 229 231 235;
+  --c-line-strong: 199 199 209;
+  --c-line-sidebar: 231 231 231;
+
+  /* interaction */
+  --c-hover: 243 244 246;
+  --c-hover-nav: 234 234 234;
+  --c-active-nav: 226 226 230;
+  --c-primary: 41 41 41;
+  --c-primary-hover: 58 58 58;
+  --c-primary-active: 31 31 31;
+  --c-disabled-bg: 233 233 236;
+  --c-disabled-fg: 161 161 170;
+
+  --shadow-soft: 0 1px 2px rgba(24, 24, 27, 0.04);
+  --shadow-composer: 0 1px 6px rgba(24, 24, 27, 0.05);
+}
+
 html, body, #root { height: 100%; }
-body { @apply m-0 overflow-hidden bg-white font-sans text-zinc-900 antialiased; }
+body { @apply m-0 overflow-hidden bg-app font-sans text-fg antialiased; }
 
 @layer components {
-  .card { @apply rounded-2xl border border-zinc-200 bg-white p-4; }
-  .btn { @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50; }
-  .btn-primary { @apply btn bg-zinc-900 text-white hover:bg-zinc-700; }
-  .btn-ghost { @apply btn border border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-50; }
-  .btn-soft { @apply btn bg-zinc-100 text-zinc-800 hover:bg-zinc-200; }
-  .chip { @apply inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-1 text-xs text-zinc-600; }
-  .icon-btn { @apply inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 transition hover:bg-zinc-200/60 hover:text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/30; }
+  .card { @apply rounded-card border border-line bg-surface p-4; }
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors duration-fast disabled:cursor-not-allowed disabled:opacity-50; }
+  .btn-primary { @apply btn bg-primary text-white hover:bg-primary-hover active:bg-primary-active; }
+  .btn-ghost { @apply btn border border-line bg-white text-fg hover:bg-hover; }
+  .btn-soft { @apply btn bg-hover text-fg hover:bg-hover-nav; }
+  .chip { @apply inline-flex items-center rounded-full bg-hover px-2.5 py-1 text-xs text-fg-2; }
+  .icon-btn { @apply inline-flex h-7 w-7 items-center justify-center rounded-md text-fg-3 transition-colors duration-fast hover:bg-hover-nav hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30; }
+  .focus-ring { @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30; }
 }
 
 .thread-scroll { scrollbar-width: thin; scrollbar-color: #d4d4d8 transparent; }
@@ -22,3 +55,13 @@ body { @apply m-0 overflow-hidden bg-white font-sans text-zinc-900 antialiased; 
 .dot { animation: dot 1.2s infinite; }
 .dot:nth-child(2) { animation-delay: .15s; }
 .dot:nth-child(3) { animation-delay: .3s; }
+
+/* Respect reduced motion: keep state changes, drop movement. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
