@@ -105,3 +105,26 @@ def test_sse_stream_replays_activity(client, live_server):
             if "Waiting for your approval" in line:
                 break
     assert any(line.startswith("event: activity") for line in seen)
+
+
+def test_improve_prompt_needs_a_model_and_validates_input(client):
+    r = client.post("/api/prompt/improve", json={"text": "laptop under 50k"})
+    assert r.status_code == 503 and "AI model" in r.json()["detail"]
+    assert client.post("/api/prompt/improve", json={"text": "x"}).status_code == 422
+
+
+def test_improve_prompt_returns_the_rewrite(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from app.api import prompt as prompt_api
+    from app.main import app
+
+    class Fake:
+        def invoke(self, text, system=None, temperature=0.2):
+            assert "laptop under 50k" in text
+            return ' "A laptop under ₹50,000 for coding with at least 16GB RAM." '
+
+    monkeypatch.setattr(prompt_api, "get_llm", lambda: Fake())
+    with TestClient(app) as c:
+        out = c.post("/api/prompt/improve", json={"text": "laptop under 50k"}).json()
+    assert out["prompt"] == "A laptop under ₹50,000 for coding with at least 16GB RAM."

@@ -1,15 +1,15 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import AgentActivity from '../components/AgentActivity/AgentActivity'
 import ApprovalDialog from '../components/ApprovalDialog/ApprovalDialog'
 import CartStatus from '../components/CartStatus/CartStatus'
-import { AgentMessage, DayDivider, TypingIndicator, UserMessage } from '../components/Chat/Chat'
+import { AgentMessage, DayDivider, Thinking, UserMessage } from '../components/Chat/Chat'
 import Composer from '../components/Chat/Composer'
-import ProductCard from '../components/ProductCard/ProductCard'
+import { FOLLOW_UP_PROMPTS, STARTER_PROMPTS } from '../components/Chat/PromptLibrary'
+import ProductCard, { CompactCard } from '../components/ProductCard/ProductCard'
 import ProductComparison from '../components/ProductComparison/ProductComparison'
-import UserAction from '../components/UserAction/UserAction'
 import Shell from '../components/Shell/Shell'
-import { useHealth } from '../hooks/useHealth'
+import UserAction from '../components/UserAction/UserAction'
 import { useShoppingSession } from '../hooks/useShoppingSession'
 import { errorMessage } from '../services/api'
 import { approve, cancelSession, continueSession, inr, sendChat } from '../services/shopping'
@@ -17,7 +17,7 @@ import { dayLabel } from '../services/time'
 import type { Product } from '../types/product'
 import type { Comparison, Recommendation, ShoppingSession as Session } from '../types/shopping'
 
-const SUGGESTIONS = ['Why did you choose this?', 'Which one has better battery life?', 'What if I increase my budget to ₹60k?']
+const CHIPS = ['Why did you choose this one?', 'Show me a cheaper alternative', 'Which option has the best reviews?']
 
 function RecommendationBlock({
   rec,
@@ -60,11 +60,12 @@ function RecommendationBlock({
           {(rec.alternatives ?? []).length > 0 && (
             <div>
               <h3 className="mb-2 text-[11px] font-medium uppercase tracking-wider text-zinc-400">Other options</h3>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {(rec.alternatives ?? []).map((p) => (
-                  <ProductCard
+              <div className="grid gap-3 sm:grid-cols-3">
+                {(rec.alternatives ?? []).slice(0, 3).map((p, i) => (
+                  <CompactCard
                     key={p.id}
                     product={p}
+                    index={i}
                     actionLabel={canChoose ? 'Choose this instead' : undefined}
                     onAction={() => onChoose(p)}
                   />
@@ -80,8 +81,6 @@ function RecommendationBlock({
 
 export default function ShoppingSession() {
   const { id } = useParams()
-  const navigate = useNavigate()
-  const health = useHealth()
   const { session, events, error, refresh } = useShoppingSession(id)
   const [alternative, setAlternative] = useState<Product | null>(null)
   const [acting, setActing] = useState(false)
@@ -123,11 +122,11 @@ export default function ShoppingSession() {
     }
   }
 
-  async function submit() {
-    if (!id || !text.trim() || sending) return
-    const message = text.trim()
+  async function submit(override?: string) {
+    const message = (override ?? text).trim()
+    if (!id || !message || sending) return
     setSending(true)
-    setText('')
+    if (override === undefined) setText('')
     setActionError(null)
     try {
       await sendChat(id, message)
@@ -157,10 +156,9 @@ export default function ShoppingSession() {
   const rec = session.recommendation
   const chosen = alternative ?? rec?.product
   const approvalRec: Partial<Recommendation> | undefined = alternative
-    ? { product: alternative, reasons: [`You chose this instead of the top pick`], summary: '' }
+    ? { product: alternative, reasons: ['You chose this instead of the top pick'], summary: '' }
     : rec
   const lastEvent = events[events.length - 1]?.message
-  const showSuggestions = !busy && !!rec?.product
 
   const thread: JSX.Element[] = []
   let lastDay = ''
@@ -170,25 +168,32 @@ export default function ShoppingSession() {
       thread.push(<DayDivider key={`d${i}`} label={day} />)
       lastDay = day
     }
+    const isLatestRec = i === lastRecIndex
     thread.push(
-      <div key={`m${i}`} className="mb-6">
+      <div key={`m${i}`} className="mb-5">
         {m.role === 'user' ? (
           <UserMessage text={m.content} at={m.timestamp} />
         ) : (
-          <AgentMessage id={`${id}:${i}`} text={m.content} at={m.timestamp}>
+          <AgentMessage
+            id={`${id}:${i}`}
+            text={m.content}
+            at={m.timestamp}
+            chips={isLatestRec && !busy ? CHIPS : undefined}
+            onChip={(c) => void submit(c)}
+          >
             {m.meta?.type === 'recommendation' && m.meta.recommendation && (
               <RecommendationBlock
                 rec={m.meta.recommendation}
-                comparison={i === lastRecIndex ? session.comparison : m.meta.comparison}
-                latest={i === lastRecIndex}
-                canChoose={awaiting && status === 'waiting_for_approval'}
+                comparison={isLatestRec ? session.comparison : m.meta.comparison}
+                latest={isLatestRec}
+                canChoose={status === 'waiting_for_approval'}
                 onChoose={setAlternative}
               />
             )}
           </AgentMessage>
         )}
         {i === 0 && events.length > 0 && (
-          <div className="mt-6 max-w-[92%]">
+          <div className="mt-5">
             <AgentActivity events={events} status={status} />
           </div>
         )}
@@ -197,49 +202,36 @@ export default function ShoppingSession() {
   })
 
   const footer = (
-    <div className="shrink-0 px-4 pb-3 pt-1">
-      <div className="mx-auto w-full max-w-[640px]">
-        {showSuggestions && (
-          <div className="mb-2 flex flex-wrap gap-1.5">
-            {SUGGESTIONS.map((s) => (
-              <button key={s} type="button" className="chip hover:bg-zinc-200" onClick={() => setText(s)}>
-                {s}
-              </button>
-            ))}
-          </div>
-        )}
+    <div className="shrink-0 px-4 pb-4 pt-1 sm:px-6">
+      <div className="mx-auto w-full max-w-[760px]">
         <Composer
           value={text}
           onChange={setText}
-          onSubmit={submit}
-          onPlus={() => navigate('/')}
-          health={health}
+          onSubmit={() => void submit()}
+          prompts={rec?.product ? FOLLOW_UP_PROMPTS : STARTER_PROMPTS}
           disabled={busy}
           sending={sending}
-          placeholder={busy ? 'CartMind is working…' : 'Ask a question or change your requirements…'}
+          placeholder={busy ? 'CartMind is working…' : 'Ask me anything'}
         />
-        <p className="mt-2 text-center text-[11px] text-zinc-400">
-          Prices come from the live site and can change. CartMind always stops before payment.
-        </p>
       </div>
     </div>
   )
 
   return (
-    <Shell footer={footer}>
-      <div className="thread-scroll flex-1 overflow-y-auto px-4 pb-4 pt-2">
-        <div className="mx-auto w-full max-w-[640px]">
+    <Shell footer={footer} control={{ busy, onCancel: () => void run(() => cancelSession(id)) }}>
+      <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6">
+        <div className="mx-auto w-full max-w-[760px]">
           {thread.map((el, i) => (
             <Fragment key={i}>{el}</Fragment>
           ))}
 
           {status === 'no_results' && session.near_misses.length > 0 && (
-            <div className="mb-6 max-w-[92%] space-y-3">
+            <div className="mb-5 space-y-3 rounded-2xl border border-zinc-200 bg-white p-5">
               <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-400">Closest options</p>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {session.near_misses.map((n) => (
+              <div className="grid gap-3 sm:grid-cols-3">
+                {session.near_misses.map((n, i) => (
                   <div key={n.product.id}>
-                    <ProductCard product={n.product} />
+                    <CompactCard product={n.product} index={i} />
                     <p className="mt-1 text-xs text-amber-700">Misses: {n.fails}</p>
                   </div>
                 ))}
@@ -248,7 +240,7 @@ export default function ShoppingSession() {
           )}
 
           {needsUser && (
-            <div className="mb-6 max-w-[92%]">
+            <div className="mb-5">
               <UserAction
                 message={session.user_prompt ?? 'Please complete the step in the browser window.'}
                 busy={acting}
@@ -259,7 +251,7 @@ export default function ShoppingSession() {
           )}
 
           {awaiting && approvalRec && chosen && (
-            <div className="mb-6 max-w-[92%]">
+            <div className="mb-5">
               <ApprovalDialog
                 recommendation={approvalRec}
                 priceChange={status === 'price_changed' ? (session.price_change ?? undefined) : undefined}
@@ -275,13 +267,13 @@ export default function ShoppingSession() {
             </div>
           )}
 
-          <div className="mb-6 max-w-[92%]">
+          <div className="mb-5">
             <CartStatus session={session as Session} />
           </div>
 
           {busy && !needsUser && (
-            <div className="mb-6">
-              <TypingIndicator label={lastEvent ?? 'Working on it…'} />
+            <div className="mb-5">
+              <Thinking detail={lastEvent} />
             </div>
           )}
           {actionError && <p className="mb-4 text-sm text-rose-600">{actionError}</p>}
