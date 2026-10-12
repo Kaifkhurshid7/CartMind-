@@ -1,4 +1,5 @@
 import { inr } from '../../services/shopping'
+import { CheckIcon } from '../icons'
 import type { Recommendation } from '../../types/shopping'
 
 interface Props {
@@ -39,8 +40,8 @@ export default function ApprovalDialog({ recommendation, priceChange, busy, onAp
           <p className="text-lg font-semibold text-zinc-900">{inr(product.price)}</p>
           <ul className="mt-2 space-y-1 text-[13px] text-zinc-600">
             {(recommendation.reasons ?? []).slice(0, 4).map((r) => (
-              <li key={r}>
-                <span className="mr-2 text-emerald-600">✓</span>
+              <li key={r} className="flex gap-2">
+                <CheckIcon width={14} height={14} className="mt-0.5 shrink-0 text-emerald-600" />
                 {r}
               </li>
             ))}

@@ -1,13 +1,24 @@
 import { ReactNode, useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useHealth } from '../../hooks/useHealth'
-import { ChevronDown, LinkIcon, SidebarIcon, SlidersIcon, XIcon } from '../icons'
+import { useMediaQuery } from '../../hooks/useMediaQuery'
+import { LinkIcon, MenuIcon, SlidersIcon, XIcon } from '../icons'
 import Popover from '../ui/Popover'
+import { StatusDot, statusInfo } from '../ui/StatusBadge'
 import Sidebar from '../Sidebar/Sidebar'
 
 export interface ControlProps {
   busy?: boolean
   onCancel?: () => void
+}
+
+interface Props {
+  children: ReactNode
+  footer?: ReactNode
+  control?: ControlProps
+  /** Conversation title and session status for the top bar. */
+  title?: string
+  status?: string
 }
 
 const KEY = 'cartmind:sidebar-collapsed'
@@ -20,11 +31,12 @@ function loadCollapsed(): boolean {
   }
 }
 
-/** App frame: sidebar, top bar (model details + controls), content, and an optional pinned footer. */
-export default function Shell({ children, footer, control }: { children: ReactNode; footer?: ReactNode; control?: ControlProps }) {
+/** App frame: sidebar (rail on desktop, drawer on mobile), compact top bar, content, optional footer. */
+export default function Shell({ children, footer, control, title, status }: Props) {
   const health = useHealth()
+  const isDesktop = useMediaQuery('(min-width: 768px)')
   const [collapsed, setCollapsed] = useState(loadCollapsed)
-  const [modelOpen, setModelOpen] = useState(false)
+  const [drawer, setDrawer] = useState(false)
   const [controlOpen, setControlOpen] = useState(false)
   const [copied, setCopied] = useState(false)
 
@@ -36,8 +48,12 @@ export default function Shell({ children, footer, control }: { children: ReactNo
     }
   }, [collapsed])
 
-  const closeModel = useCallback(() => setModelOpen(false), [])
+  useEffect(() => {
+    if (isDesktop) setDrawer(false)
+  }, [isDesktop])
+
   const closeControl = useCallback(() => setControlOpen(false), [])
+  const rail = isDesktop && collapsed
 
   async function copyLink() {
     try {
@@ -49,84 +65,83 @@ export default function Shell({ children, footer, control }: { children: ReactNo
     }
   }
 
-  const modelLabel = health ? (health.llm_model ?? 'Rule-based') : '…'
-
   return (
-    <div className="h-full p-2 sm:p-2.5">
-      <div className="flex h-full overflow-hidden rounded-2xl border border-zinc-200/80 bg-[#fcfcfb] shadow-sm">
-        {!collapsed && <Sidebar health={health} onCollapse={() => setCollapsed(true)} />}
+    <div className="flex h-dvh w-full overflow-hidden bg-white text-zinc-900">
+      {drawer && <div className="fixed inset-0 z-30 bg-zinc-900/30 md:hidden" onClick={() => setDrawer(false)} aria-hidden="true" />}
 
-        <div className="surface flex min-w-0 flex-1 flex-col">
-          <header className="flex h-14 shrink-0 items-center justify-between px-4 sm:px-6">
-            <div className="relative flex items-center gap-2">
-              {collapsed && (
-                <button className="icon-btn" aria-label="Open sidebar" onClick={() => setCollapsed(false)}>
-                  <SidebarIcon />
-                </button>
-              )}
-              <button
-                className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium text-zinc-800 hover:bg-zinc-100"
-                onClick={() => setModelOpen((o) => !o)}
-                aria-haspopup="dialog"
-                aria-expanded={modelOpen}
-              >
-                <span className="h-3.5 w-3.5 rounded-full bg-gradient-to-br from-orange-300 to-orange-500" />
-                {modelLabel}
-                <ChevronDown width={14} height={14} className="text-zinc-400" />
-              </button>
-              <Popover open={modelOpen} onClose={closeModel} className="left-0 top-full mt-1 w-64">
-                <div className="rounded-xl border border-zinc-200 bg-white p-3 shadow-lg">
-                  <div className="flex justify-between py-1 text-[13px]"><span className="text-zinc-500">Mode</span><span className="font-medium">{health?.shopping_mode ?? '…'}</span></div>
-                  <div className="flex justify-between py-1 text-[13px]"><span className="text-zinc-500">Model</span><span className="font-medium">{health?.llm_model ?? 'none'}</span></div>
-                  <div className="flex justify-between py-1 text-[13px]"><span className="text-zinc-500">Shop</span><span className="font-medium">{health?.site ?? '…'}</span></div>
-                  {health && !health.llm_configured && (
-                    <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">
-                      No AI key found. Add GEMINI_API_KEY_1 to .env and restart the backend.
-                    </p>
-                  )}
-                </div>
-              </Popover>
-            </div>
+      <aside
+        aria-label="Sidebar"
+        className={`fixed inset-y-0 left-0 z-40 h-full w-[280px] max-w-[85vw] -translate-x-full overflow-hidden border-r border-zinc-200 transition-transform duration-200 md:static md:z-auto md:max-w-none md:flex-none md:translate-x-0 md:transition-[width] ${
+          drawer ? 'translate-x-0' : ''
+        } ${collapsed ? 'md:w-16' : 'md:w-[280px]'}`}
+      >
+        <Sidebar health={health} rail={rail} onToggleRail={() => setCollapsed((c) => !c)} onNavigate={() => setDrawer(false)} />
+      </aside>
 
-            <div className="relative">
+      <main className="flex h-full min-w-0 flex-1 flex-col">
+        <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-zinc-100 px-4 md:px-6">
+          <div className="flex min-w-0 items-center gap-2">
+            <button className="icon-btn !h-9 !w-9 md:hidden" aria-label="Open sidebar" title="Open sidebar" onClick={() => setDrawer(true)}>
+              <MenuIcon width={18} height={18} />
+            </button>
+            {title ? (
+              <>
+                <h1 className="min-w-0 truncate text-[14px] font-medium text-zinc-800" title={title}>
+                  {title}
+                </h1>
+                {status && (
+                  <span className="hidden shrink-0 items-center gap-1.5 text-[12px] text-zinc-500 sm:inline-flex">
+                    <StatusDot status={status} />
+                    {statusInfo(status).text}
+                  </span>
+                )}
+              </>
+            ) : (
+              <span className="text-[14px] font-medium text-zinc-800">CartMind</span>
+            )}
+          </div>
+
+          {control && (
+            <div className="relative shrink-0">
               <button
-                className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-zinc-600 hover:bg-zinc-100"
+                className="flex h-9 items-center gap-2 rounded-lg px-2.5 text-[14px] text-zinc-600 transition hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/30"
                 onClick={() => setControlOpen((o) => !o)}
                 aria-haspopup="dialog"
                 aria-expanded={controlOpen}
+                aria-label="Session controls"
               >
                 <SlidersIcon width={15} height={15} />
-                Control
+                <span className="hidden sm:inline">Control</span>
               </button>
               <Popover open={controlOpen} onClose={closeControl} className="right-0 top-full mt-1 w-60">
                 <div className="rounded-xl border border-zinc-200 bg-white p-1.5 shadow-lg">
                   <button
-                    disabled={!control?.busy}
+                    disabled={!control.busy}
                     onClick={() => {
-                      control?.onCancel?.()
+                      control.onCancel?.()
                       setControlOpen(false)
                     }}
-                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[14px] text-zinc-800 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:text-zinc-300 disabled:hover:bg-transparent"
+                    className="flex h-10 w-full items-center gap-2.5 rounded-lg px-3 text-left text-[14px] text-zinc-800 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:text-zinc-300 disabled:hover:bg-transparent"
                   >
                     <XIcon width={15} height={15} />
                     Stop current task
                   </button>
-                  <button onClick={copyLink} className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[14px] text-zinc-800 hover:bg-zinc-50">
+                  <button onClick={copyLink} className="flex h-10 w-full items-center gap-2.5 rounded-lg px-3 text-left text-[14px] text-zinc-800 hover:bg-zinc-50">
                     <LinkIcon width={15} height={15} />
                     {copied ? 'Link copied' : 'Copy link to this chat'}
                   </button>
-                  <Link to="/history" onClick={() => setControlOpen(false)} className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-[14px] text-zinc-800 hover:bg-zinc-50">
+                  <Link to="/history" onClick={closeControl} className="flex h-10 items-center gap-2.5 rounded-lg px-3 text-[14px] text-zinc-800 hover:bg-zinc-50">
                     All searches
                   </Link>
                 </div>
               </Popover>
             </div>
-          </header>
+          )}
+        </header>
 
-          <div className="flex min-h-0 flex-1 flex-col">{children}</div>
-          {footer}
-        </div>
-      </div>
+        <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+        {footer}
+      </main>
     </div>
   )
 }

@@ -4,14 +4,7 @@
 
 :root { color-scheme: light; }
 html, body, #root { height: 100%; }
-body { @apply bg-[#ececea] text-zinc-900 font-sans antialiased; }
-
-/* faint paper texture behind the thread, like the reference */
-.surface {
-  background-image:
-    radial-gradient(60rem 18rem at 85% 105%, rgba(0, 0, 0, 0.035), transparent 70%),
-    radial-gradient(50rem 16rem at 10% 110%, rgba(0, 0, 0, 0.03), transparent 70%);
-}
+body { @apply m-0 overflow-hidden bg-white font-sans text-zinc-900 antialiased; }
 
 @layer components {
   .card { @apply rounded-2xl border border-zinc-200 bg-white p-4; }
@@ -20,7 +13,7 @@ body { @apply bg-[#ececea] text-zinc-900 font-sans antialiased; }
   .btn-ghost { @apply btn border border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-50; }
   .btn-soft { @apply btn bg-zinc-100 text-zinc-800 hover:bg-zinc-200; }
   .chip { @apply inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-1 text-xs text-zinc-600; }
-  .icon-btn { @apply inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700; }
+  .icon-btn { @apply inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 transition hover:bg-zinc-200/60 hover:text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/30; }
 }
 
 .thread-scroll { scrollbar-width: thin; scrollbar-color: #d4d4d8 transparent; }
