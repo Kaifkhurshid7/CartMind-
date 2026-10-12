@@ -188,7 +188,7 @@ flowchart TD
 
     RES --> RESQ{"found<br/>anything?"}
     RESQ -- "blocked / failed / cancelled" --> FAILEND([END])
-    RESQ -- "yes" --> FIL["<b>filter</b><br/>budget · mandatory specs · trust floor"]
+    RESQ -- "yes" --> FIL["<b>filter</b><br/>budget · stated specs · confidence warnings"]
 
     FIL --> FILQ{"any left?"}
     FILQ -- "none" --> REP["<b>replan</b><br/>find near-misses<br/>(fail only one requirement)"]
@@ -308,7 +308,7 @@ CartMind is designed so that the worst possible outcome is an extra item in a ca
 | CAPTCHA / bot checks | Never solved or bypassed. The agent hands off to you, or switches search engine / site. |
 | Wandering | Only allow-listed domains open (`google`, `bing`, `duckduckgo`, `amazon.in/.com`, `flipkart.com`). Navigation that lands elsewhere is reversed. |
 | Hallucinated success | "I added it" is **never trusted**. The cart page is re-opened and the item must be present. |
-| Junk listings | Scraped listings need 10+ reviews and 3.5 stars or more, and a mandatory spec must be *stated* in the listing. A missing specification is treated as a failed requirement rather than an assumption. |
+| Weak listings | Listings with few or no reviews, or a spec not stated in the title, are **shown with a warning and ranked lower**, never silently hidden. Only products over budget or contradicting a stated spec are removed. |
 | Runaway agent | Hard step budgets (research 20, shopping 18) and a timeout on every human hand-off. |
 | Leaked secrets | API keys live only on the backend. Your browser profile (`browser_profile/`) holds cookies and is **git-ignored**. |
 
@@ -358,7 +358,7 @@ cartmind/
 │   │   │   ├── nodes.py            #   17 node functions + routers
 │   │   │   ├── state.py            #   ShoppingState
 │   │   │   ├── requirements.py     #   extraction (LLM + rules), validation, spec checks
-│   │   │   ├── research.py         #   candidate search, filtering, trust floor
+│   │   │   ├── research.py         #   candidate search, filtering, confidence warnings
 │   │   │   ├── comparison.py       #   deterministic scoring + comparison text
 │   │   │   ├── recommendation.py   #   reasons, trade-offs, alternatives
 │   │   │   ├── approval.py         #   human-in-the-loop payloads
@@ -462,13 +462,15 @@ All settings are environment variables (see [`.env.example`](.env.example)).
 | Variable | Default | Description |
 |---|---|---|
 | `GEMINI_API_KEY_1..3` | – | Gemini keys. Rotated automatically when one hits a quota limit. |
-| `GEMINI_MODEL` | `gemini-2.5-flash` | Model used for reasoning and tool-calling. |
+| `GEMINI_MODEL` | `gemini-3.8-flash` | Model used for reasoning and tool-calling. |
 | `GROQ_API_KEY` / `GROQ_MODEL` | – / `llama-3.3-70b-versatile` | Optional fallback provider. Check Groq's model list and set `GROQ_MODEL` to a currently available model. |
 | `SHOPPING_MODE` | `agent` | `agent` · `live` · `demo` (see [modes](#4-operating-modes)). |
 | `AGENT_HEADLESS` | `false` | Keep `false` so you can see and assist the browser. |
 | `AGENT_BROWSER_CHANNEL` | `chrome` | Use installed Chrome; falls back to bundled Chromium. |
 | `BROWSER_PROFILE_DIR` | `backend/browser_profile` | Persistent profile (your logins). **Never commit.** |
-| `AGENT_RESEARCH_STEPS` | `20` | Max model-driven steps while researching. |
+| `AGENT_RESEARCH_STEPS` | `12` | Max model-driven steps while researching. |
+| `AGENT_START` | `shop` | `shop` starts on the Amazon.in results page (fast); `google` starts from a web search. |
+| `AGENT_MAX_PRODUCTS` | `5` | Candidates to collect before stopping, and the most that are shown. |
 | `AGENT_SHOPPING_STEPS` | `18` | Max model-driven steps while adding to cart (fallback path). |
 | `AGENT_FAST_PATH` | `true` | On Amazon.in, add to cart with the built-in routine first (no model calls); the AI agent is the fallback. |
 | `USER_ACTION_TIMEOUT` | `900` | Seconds to wait for you on a login / robot check. |
@@ -542,7 +544,7 @@ backend/.venv/bin/python -m pytest          # Windows: backend\.venv\Scripts\pyt
 | **Guardrails** | Buy-Now / checkout / payment refusal, domain allow-list, credential fields, price-confirm gate, false-success detection, step budget, hand-off cancel |
 | **Playwright** | Real Chromium: add to cart, unavailable, price change, not found, site down, timeouts |
 | **API** | Lifecycle, 409 gating, double-approve, chat intents, SSE replay, response fields |
-| **Parsing** | Price / rating / spec extraction from live-listing titles, trust floor |
+| **Parsing** | Price / rating / spec extraction from live-listing titles, confidence warnings |
 
 ---
 
