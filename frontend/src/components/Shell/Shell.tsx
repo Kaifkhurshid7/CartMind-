@@ -2,7 +2,7 @@ import { ReactNode, useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useHealth } from '../../hooks/useHealth'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
-import { LinkIcon, MenuIcon, SlidersIcon, XIcon } from '../icons'
+import { ClockIcon, LinkIcon, MenuIcon, SlidersIcon, XIcon } from '../icons'
 import Popover from '../ui/Popover'
 import Sidebar from '../Sidebar/Sidebar'
 
@@ -89,10 +89,14 @@ export default function Shell({ children, footer, control, title }: Props) {
                 </h1>
               </>
             ) : (
-              <span className="text-[14px] font-medium text-fg">CartMind</span>
+              <span className="text-[14px] font-medium text-fg">New shopping session</span>
             )}
           </div>
 
+          <div className="flex shrink-0 items-center gap-1">
+            <Link to="/history" className="icon-btn !h-9 !w-9" aria-label="Shopping history" title="Shopping history">
+              <ClockIcon width={18} height={18} />
+            </Link>
           {control && (
             <div className="relative shrink-0">
               <button
@@ -129,6 +133,7 @@ export default function Shell({ children, footer, control, title }: Props) {
               </Popover>
             </div>
           )}
+          </div>
         </header>
 
         <div className="flex min-h-0 flex-1 animate-fade-in flex-col">{children}</div>
