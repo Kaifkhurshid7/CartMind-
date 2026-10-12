@@ -119,3 +119,16 @@ def test_replanning_updates_requirements_and_results(live_server):
     assert after["requirements"]["budget"]["maximum"] == 60000
     assert "performance" in after["requirements"]["priorities"]
     assert len(after["shortlisted_products"]) > len(before["shortlisted_products"])
+
+
+def test_pending_approval_survives_a_server_restart(live_server):
+    """Checkpoints live in SQLite: a freshly built graph (new process) can still answer a pending approval."""
+    from app.agents.graph import get_graph
+
+    sid = _start()
+    pid = sessions.session_view(sid)["recommendation"]["product"]["id"]
+    get_graph.cache_clear()  # simulate a restart: compiled graph and its in-memory state are gone
+    runner.resume_run(sid, {"approved": True, "product_id": pid})
+    view = sessions.session_view(sid)
+    assert view["status"] == "completed"
+    assert view["cart_state"]["items"][0]["product_id"] == pid

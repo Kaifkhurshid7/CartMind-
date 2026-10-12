@@ -1,10 +1,10 @@
-"""Gemini access through LangChain, with key rotation and an optional Groq fallback."""
+"""Gemini access through LangChain, with key rotation, quota cool-downs and an optional Groq fallback."""
 
 from functools import lru_cache
-from typing import Any
+from typing import Any, Callable
 
 from app.config import get_settings
-from app.llm.key_manager import KeyManager, is_quota_error
+from app.llm.key_manager import KeyManager, cooldown_seconds, is_quota_error
 from app.utils.helpers import extract_json
 from app.utils.logging import get_logger
 
@@ -20,7 +20,6 @@ class LLMClient:
         self.settings = get_settings()
         self.keys = KeyManager(self.settings.gemini_keys)
         self._models: dict[str, Any] = {}
-        self._groq: Any = None
 
     @property
     def available(self) -> bool:
@@ -42,9 +41,7 @@ class LLMClient:
     def _groq_model(self, temperature: float):
         from langchain_groq import ChatGroq
 
-        return ChatGroq(
-            model=self.settings.groq_model, api_key=self.settings.groq_api_key, temperature=temperature
-        )
+        return ChatGroq(model=self.settings.groq_model, api_key=self.settings.groq_api_key, temperature=temperature)
 
     @staticmethod
     def _messages(prompt: str, system: str | None):
@@ -62,53 +59,49 @@ class LLMClient:
             return "".join(b if isinstance(b, str) else b.get("text", "") for b in content)
         return str(content)
 
-    def invoke(self, prompt: str, system: str | None = None, temperature: float = 0.2) -> str:
-        messages = self._messages(prompt, system)
+    def _run(self, temperature: float, call: Callable[[Any], Any]) -> Any:
+        """Run `call(model)` on Gemini keys (skipping cooled-down ones), then on Groq."""
         last_exc: Exception | None = None
 
-        for _ in range(max(len(self.keys), 0)):
+        for _ in range(len(self.keys)):
             key = self.keys.current()
+            if key is None:  # every key is parked: go straight to the fallback provider
+                break
             try:
-                return self._text(self._gemini(key, temperature).invoke(messages).content)
+                return call(self._gemini(key, temperature))
             except Exception as exc:  # noqa: BLE001
                 last_exc = exc
                 if is_quota_error(exc):
-                    log.warning("Gemini key hit quota; rotating")
+                    seconds = cooldown_seconds(exc)
+                    log.warning("Gemini key hit its quota; parking it for %ds", seconds)
+                    self.keys.cool_down(key, seconds)
                 else:
                     log.warning("Gemini call failed: %s", exc)
-                self.keys.rotate()
+                    self.keys.rotate()
 
         if self.settings.groq_api_key:
             try:
-                return self._text(self._groq_model(temperature).invoke(messages).content)
+                return call(self._groq_model(temperature))
             except Exception as exc:  # noqa: BLE001
                 last_exc = exc
                 log.warning("Groq fallback failed: %s", exc)
 
         raise LLMUnavailable(str(last_exc) if last_exc else "No LLM provider configured")
 
+    def invoke(self, prompt: str, system: str | None = None, temperature: float = 0.2) -> str:
+        messages = self._messages(prompt, system)
+        return self._text(self._run(temperature, lambda model: model.invoke(messages).content))
+
     def decide(self, prompt: str, tools: list, system: str | None = None) -> dict | None:
         """Ask the model to pick ONE tool call. Returns {"name": ..., "args": {...}} or None if it only chatted."""
         messages = self._messages(prompt, system)
-        last_exc: Exception | None = None
 
-        def first_call(response) -> dict | None:
+        def call(model):
+            response = model.bind_tools(tools).invoke(messages)
             calls = getattr(response, "tool_calls", None) or []
             return {"name": calls[0]["name"], "args": calls[0].get("args") or {}} if calls else None
 
-        for _ in range(max(len(self.keys), 0)):
-            try:
-                return first_call(self._gemini(self.keys.current(), 0.0).bind_tools(tools).invoke(messages))
-            except Exception as exc:  # noqa: BLE001
-                last_exc = exc
-                log.warning("Gemini tool call failed: %s", exc)
-                self.keys.rotate()
-        if self.settings.groq_api_key:
-            try:
-                return first_call(self._groq_model(0.0).bind_tools(tools).invoke(messages))
-            except Exception as exc:  # noqa: BLE001
-                last_exc = exc
-        raise LLMUnavailable(str(last_exc) if last_exc else "No LLM provider configured")
+        return self._run(0.0, call)
 
     def invoke_json(self, prompt: str, system: str | None = None) -> Any:
         raw = self.invoke(prompt, system=system, temperature=0.0)
