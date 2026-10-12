@@ -16,6 +16,7 @@ def health():
         "gemini_keys": len(llm.keys),
         "llm_model": settings.gemini_model if llm.keys.available else ("groq" if settings.groq_api_key else None),
         "shopping_mode": settings.shopping_mode,
-        "agent_ready": settings.shopping_mode == "agent" and llm.available,
+        "agent_ready": settings.shopping_mode == "agent" and llm.available and llm.last_error is None,
+        "llm_error": llm.last_error,
         "site": {"agent": "Web: Google, Amazon, Flipkart", "live": "Amazon.in"}.get(settings.shopping_mode, "Demo store"),
     }

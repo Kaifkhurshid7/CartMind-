@@ -34,7 +34,7 @@ def _met_requirements(product: dict, requirements: dict) -> list[str]:
 
 
 def _drawbacks(product: dict, alternatives: list[dict]) -> list[str]:
-    out = []
+    out = [f"Heads up: {w}." for w in product.get("warnings", [])]
     for crit, label in (("battery", "battery"), ("display", "display"), ("performance", "performance")):
         mine = product["score_breakdown"].get(crit)
         better = [a for a in alternatives if a["score_breakdown"].get(crit, 0) >= (mine or 0) + 15]
