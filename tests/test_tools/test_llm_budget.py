@@ -15,6 +15,7 @@ class Reply:
 def _client(monkeypatch, gemini_calls, groq_calls, fail_gemini_with=None, groq_key="g"):
     client = LLMClient()
     client.keys = KeyManager(["k1"])
+    client.min_interval, client.max_wait = 0.0, 0.0
     client.settings = type("S", (), {"groq_api_key": groq_key, "gemini_model": "m", "groq_model": "m"})()
 
     class Gem:
@@ -27,7 +28,7 @@ def _client(monkeypatch, gemini_calls, groq_calls, fail_gemini_with=None, groq_k
             groq_calls.append(1)
             return Reply("from-groq")
 
-    client._gemini = lambda key, temperature: Gem()
+    client._gemini = lambda key, temperature, model=None: Gem()
     client._groq_model = lambda temperature: Groq()
     return client
 
@@ -39,7 +40,7 @@ def test_daily_quota_parks_the_key_so_later_calls_skip_straight_to_groq(monkeypa
     assert client.invoke("b") == "from-groq"   # later calls never touch Gemini again
     assert client.invoke("c") == "from-groq"
     assert len(gem) == 1 and len(groq) == 3
-    assert client.keys.current() is None and client.keys.usable is False
+    assert client._soonest_recovery() > 3600     # the daily-limited model stays parked for hours
 
 
 def test_per_minute_limit_only_parks_briefly():
@@ -122,3 +123,116 @@ def test_asin_extraction():
     assert ba._amazon_asin("https://www.amazon.in/x-y/dp/B0DKK15M2P/ref=sr_1_1") == "B0DKK15M2P"
     assert ba._amazon_asin("https://www.amazon.in/gp/product/B07XJ8C8F5") == "B07XJ8C8F5"
     assert ba._amazon_asin("https://www.flipkart.com/p/itm") is None
+
+
+def test_denied_project_is_parked_and_reported(monkeypatch):
+    gem, groq = [], []
+    denied = RuntimeError("403 Your project has been denied access. Please contact support.")
+    client = _client(monkeypatch, gem, groq, denied, groq_key="")
+    for _ in range(3):
+        try:
+            client.invoke("x")
+        except gemini.LLMUnavailable:
+            pass
+    assert len(gem) == 1                      # parked after the first refusal, not retried every call
+    assert "denied access" in (client.last_error or "")
+
+
+def test_last_error_clears_after_a_success(monkeypatch):
+    gem, groq = [], []
+    client = _client(monkeypatch, gem, groq, RuntimeError("403 denied access"), groq_key="g")
+    assert client.invoke("x") == "from-groq"  # Gemini refused, Groq answered
+    assert client.last_error is None
+
+
+# ---- model fallback chain and waiting --------------------------------------------------------------
+
+
+class FakeClock:
+    """Replaces time.monotonic/sleep inside the client so waits are instant but accounted for."""
+
+    def __init__(self):
+        self.now, self.slept = 1000.0, []
+
+    def monotonic(self):
+        return self.now
+
+    def sleep(self, seconds):
+        self.slept.append(round(seconds, 1))
+        self.now += seconds
+
+
+def _multi_model_client(monkeypatch, behaviour, models=("m-primary", "m-backup"), groq_key=""):
+    """behaviour(model_name, call_number) -> raise an error or return text."""
+    client = LLMClient()
+    client.keys = KeyManager(["k1"])
+    client.min_interval, client.max_wait = 0.0, 90.0
+    client.settings = type("S", (), {"groq_api_key": groq_key, "gemini_model": models[0],
+                                     "gemini_fallback_models": ",".join(models[1:]), "groq_model": "m"})()
+    clock = FakeClock()
+    monkeypatch.setattr(gemini.time, "monotonic", clock.monotonic)
+    monkeypatch.setattr(gemini.time, "sleep", clock.sleep)
+    calls = []
+
+    def build(key, temperature, model=None):
+        class M:
+            def invoke(self, _m):
+                calls.append(model)
+                out = behaviour(model, len(calls))
+                return Reply(out)
+
+        return M()
+
+    client._gemini = build
+    return client, calls, clock
+
+
+def test_busy_primary_model_falls_back_to_the_next_model(monkeypatch):
+    def behaviour(model, n):
+        if model == "m-primary":
+            raise RuntimeError("503 UNAVAILABLE. This model is currently experiencing high demand.")
+        return "from-backup"
+
+    client, calls, clock = _multi_model_client(monkeypatch, behaviour)
+    assert client.invoke("x") == "from-backup"
+    assert calls == ["m-primary", "m-backup"] and clock.slept == []
+    assert client.invoke("y") == "from-backup"       # primary stays parked briefly: no wasted retry
+    assert calls[2:] == ["m-backup"]
+
+
+def test_per_minute_limit_waits_instead_of_failing(monkeypatch):
+    def behaviour(model, n):
+        if n == 1:
+            raise RuntimeError("429 RESOURCE_EXHAUSTED: quota exceeded for requests per minute")
+        return "recovered"
+
+    client, calls, clock = _multi_model_client(monkeypatch, behaviour, models=("m-only",))
+    assert client.invoke("x") == "recovered"
+    assert len(clock.slept) == 1 and 60 <= clock.slept[0] <= 75   # waited out the ~70s limit
+    assert calls == ["m-only", "m-only"]
+
+
+def test_wait_is_capped_so_a_daily_limit_fails_fast(monkeypatch):
+    def behaviour(model, n):
+        raise RuntimeError("429 RESOURCE_EXHAUSTED: quota exceeded per day")
+
+    client, calls, clock = _multi_model_client(monkeypatch, behaviour, models=("m-only",))
+    try:
+        client.invoke("x")
+    except gemini.LLMUnavailable:
+        pass
+    else:
+        raise AssertionError("expected LLMUnavailable")
+    assert clock.slept == [] and len(calls) == 1      # a 6h limit is not waited out
+
+
+def test_retired_model_is_skipped_for_the_key(monkeypatch):
+    def behaviour(model, n):
+        if model == "gone":
+            raise RuntimeError("404 NOT_FOUND. This model models/gone is no longer available to new users.")
+        return "ok-from-" + model
+
+    client, calls, _ = _multi_model_client(monkeypatch, behaviour, models=("gone", "alive"))
+    assert client.invoke("x") == "ok-from-alive"
+    assert client.invoke("x") == "ok-from-alive"
+    assert calls.count("gone") == 1                    # never retried after the first 404

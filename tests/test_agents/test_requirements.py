@@ -96,3 +96,22 @@ def test_any_product_works_not_just_known_categories():
 def test_vague_requests_still_ask_for_clarification():
     for vague in ("something nice please", "hi", "I want something"):
         assert not R.validate(R.normalize(R.heuristic_extract(vague)))[0]
+
+
+def test_original_request_text_travels_with_the_requirements(monkeypatch):
+    class Squeezes:  # an LLM that reduces the product to a bare noun
+        def invoke_json(self, *a, **k):
+            return {"category": "book", "budget": {"maximum": 500}, "requirements": {}}
+
+    monkeypatch.setattr(R, "get_llm", lambda: Squeezes())
+    req = R.extract_requirements('Atomic Habits by James Clear paperback under 500')
+    assert req["category"] == "book" and "Atomic Habits" in req["search_text"]
+    assert R.normalize(req)["search_text"] == req["search_text"]  # survives later merges
+
+
+def test_scripted_search_uses_the_product_phrase_for_non_electronics():
+    from app.tools.amazon_tool import build_query
+
+    req = {"category": "book", "search_text": 'Find the paperback of "Atomic Habits" by James Clear under ₹500', "requirements": {}}
+    assert build_query(req) == "paperback of Atomic Habits by James Clear"
+    assert build_query({"category": "laptop", "search_text": "laptop 16gb", "requirements": {"ram": "16GB+"}}) == "laptop 16GB RAM"
