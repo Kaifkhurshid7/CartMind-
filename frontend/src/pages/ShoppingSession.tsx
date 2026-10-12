@@ -8,6 +8,7 @@ import Composer from '../components/Chat/Composer'
 import { FOLLOW_UP_PROMPTS, STARTER_PROMPTS } from '../components/Chat/PromptLibrary'
 import { CheckIcon } from '../components/icons'
 import ProductCard, { CompactCard } from '../components/ProductCard/ProductCard'
+import ScoreBreakdown from '../components/ProductCard/ScoreBreakdown'
 import ProductComparison from '../components/ProductComparison/ProductComparison'
 import Shell from '../components/Shell/Shell'
 import UserAction from '../components/UserAction/UserAction'
@@ -63,6 +64,7 @@ function RecommendationBlock({
               </ul>
             </div>
           </div>
+          {rec.product.score_breakdown && <ScoreBreakdown scores={rec.product.score_breakdown} overall={rec.product.suitability} />}
           {comparison && <ProductComparison comparison={comparison} selectedId={rec.product.id} />}
           {(rec.alternatives ?? []).length > 0 && (
             <div>

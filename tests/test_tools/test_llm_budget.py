@@ -29,7 +29,7 @@ def _client(monkeypatch, gemini_calls, groq_calls, fail_gemini_with=None, groq_k
             return Reply("from-groq")
 
     client._gemini = lambda key, temperature, model=None: Gem()
-    client._groq_model = lambda temperature: Groq()
+    client._groq_model = lambda temperature, key=None: Groq()
     return client
 
 
@@ -236,3 +236,27 @@ def test_retired_model_is_skipped_for_the_key(monkeypatch):
     assert client.invoke("x") == "ok-from-alive"
     assert client.invoke("x") == "ok-from-alive"
     assert calls.count("gone") == 1                    # never retried after the first 404
+
+
+def test_second_groq_key_takes_over_when_the_first_is_rate_limited(monkeypatch):
+    client = LLMClient()
+    client.keys = KeyManager([])                    # no Gemini keys: Groq only
+    client.min_interval, client.max_wait = 0.0, 0.0
+    client.settings = type("S", (), {"groq_api_key": "g1", "groq_api_key_2": "g2", "gemini_model": "m",
+                                     "groq_model": "m"})()
+    used = []
+
+    def build(temperature, key=None):
+        class G:
+            def invoke(self, _m):
+                used.append(key)
+                if key == "g1":
+                    raise RuntimeError("429 rate limit reached for requests per minute")
+                return Reply("from-g2")
+
+        return G()
+
+    client._groq_model = build
+    assert client.invoke("a") == "from-g2"
+    assert client.invoke("b") == "from-g2"
+    assert used == ["g1", "g2", "g2"]               # g1 parked after its first failure
