@@ -102,3 +102,12 @@ suggest the next step.
 
 Error: {error}
 Product: {product}"""
+
+IMPROVE_PROMPT = """Rewrite this shopping request so a shopping agent can act on it precisely.
+
+Request: "{text}"
+
+Rules:
+- Keep the user's intent, product and every number they gave. Do not invent a budget, brand or spec.
+- State mandatory requirements (budget, key specs) clearly, then preferences.
+- One or two sentences, plain text. Return ONLY the rewritten request, nothing else."""

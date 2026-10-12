@@ -1,53 +1,52 @@
 import { ReactNode, useState } from 'react'
 import { timeAgo } from '../../services/time'
-import { CheckIcon, CopyIcon, ThumbDown, ThumbUp } from '../icons'
+import { CheckIcon, ChevronDown, CopyIcon, HourglassIcon, LogoMark, ThumbDown, ThumbUp } from '../icons'
 
 export function DayDivider({ label }: { label: string }) {
   return (
     <div className="my-6 flex items-center gap-4 text-[11px] font-medium tracking-wider text-zinc-400">
-      <span className="h-px flex-1 bg-zinc-200" />
+      <span className="h-px flex-1 bg-zinc-200/80" />
       {label}
-      <span className="h-px flex-1 bg-zinc-200" />
+      <span className="h-px flex-1 bg-zinc-200/80" />
     </div>
   )
 }
 
-function Byline({ name, at }: { name: string; at?: string }) {
-  return (
-    <p className="mb-1.5 text-sm">
-      <span className="font-semibold text-zinc-900">{name}</span>
-      {at && <span className="text-zinc-400"> • {timeAgo(at)}</span>}
-    </p>
-  )
-}
-
-/** Right-aligned grey bubble, as in the reference design. */
+/** Right-aligned rounded pill for the shopper's messages. */
 export function UserMessage({ text, at }: { text: string; at?: string }) {
   return (
     <div className="flex justify-end">
-      <div className="max-w-[78%] rounded-2xl bg-zinc-100 px-4 py-3">
-        <Byline name="Me" at={at} />
-        <p className="whitespace-pre-wrap text-[15px] leading-6 text-zinc-800">{text}</p>
-      </div>
+      <p
+        title={at ? timeAgo(at) : undefined}
+        className="max-w-[80%] whitespace-pre-wrap rounded-3xl bg-zinc-100 px-5 py-3 text-[15px] leading-6 text-zinc-800"
+      >
+        {text}
+      </p>
     </div>
   )
 }
 
 type Vote = 'up' | 'down' | null
 
-/** Plain left-aligned agent message with copy / thumbs actions underneath. */
+/** Bordered assistant card: logo, collapse chevron, message, rich content, follow-up chips. */
 export function AgentMessage({
   id,
   text,
   at,
   children,
+  chips,
+  onChip,
 }: {
   id: string
   text: string
   at?: string
   children?: ReactNode
+  chips?: string[]
+  onChip?: (chip: string) => void
 }) {
   const key = `cartmind:vote:${id}`
+  const [open, setOpen] = useState(true)
+  const [copied, setCopied] = useState(false)
   const [vote, setVote] = useState<Vote>(() => {
     try {
       return (localStorage.getItem(key) as Vote) || null
@@ -55,13 +54,13 @@ export function AgentMessage({
       return null
     }
   })
-  const [copied, setCopied] = useState(false)
 
   function choose(v: Exclude<Vote, null>) {
     const next = vote === v ? null : v
     setVote(next)
     try {
-      next ? localStorage.setItem(key, next) : localStorage.removeItem(key)
+      if (next) localStorage.setItem(key, next)
+      else localStorage.removeItem(key)
     } catch {
       /* storage unavailable */
     }
@@ -77,34 +76,59 @@ export function AgentMessage({
   }
 
   return (
-    <div className="max-w-[92%]">
-      <Byline name="CartMind" at={at} />
-      <p className="whitespace-pre-wrap text-[15px] leading-6 text-zinc-800">{text}</p>
-      {children && <div className="mt-3 space-y-3">{children}</div>}
-      <div className="mt-2 flex items-center gap-0.5">
-        <button className={`icon-btn ${vote === 'up' ? '!text-zinc-900' : ''}`} aria-label="Good response" aria-pressed={vote === 'up'} onClick={() => choose('up')}>
-          <ThumbUp />
-        </button>
-        <button className={`icon-btn ${vote === 'down' ? '!text-zinc-900' : ''}`} aria-label="Bad response" aria-pressed={vote === 'down'} onClick={() => choose('down')}>
-          <ThumbDown />
-        </button>
-        <button className="icon-btn" aria-label="Copy response" onClick={copy}>
-          {copied ? <CheckIcon /> : <CopyIcon />}
-        </button>
+    <article className="group rounded-2xl border border-zinc-200 bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+      <div className="flex items-center justify-between">
+        <LogoMark size={24} />
+        <div className="flex items-center gap-1">
+          <span className="mr-1 hidden text-xs text-zinc-400 group-hover:inline">{at ? timeAgo(at) : ''}</span>
+          <button className="icon-btn" aria-label={open ? 'Collapse message' : 'Expand message'} aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+            <ChevronDown className={`transition ${open ? '' : '-rotate-90'}`} />
+          </button>
+        </div>
       </div>
-    </div>
+
+      {open ? (
+        <>
+          <p className="mt-3 whitespace-pre-wrap text-[15px] leading-7 text-zinc-800">{text}</p>
+          {children && <div className="mt-4 space-y-4">{children}</div>}
+          {chips && chips.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {chips.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => onChip?.(c)}
+                  className="rounded-xl bg-zinc-100 px-3 py-1.5 text-[13px] text-zinc-700 transition hover:bg-zinc-200"
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="mt-3 flex items-center gap-0.5 opacity-60 transition group-hover:opacity-100">
+            <button className={`icon-btn ${vote === 'up' ? '!text-zinc-900' : ''}`} aria-label="Good response" aria-pressed={vote === 'up'} onClick={() => choose('up')}>
+              <ThumbUp />
+            </button>
+            <button className={`icon-btn ${vote === 'down' ? '!text-zinc-900' : ''}`} aria-label="Bad response" aria-pressed={vote === 'down'} onClick={() => choose('down')}>
+              <ThumbDown />
+            </button>
+            <button className="icon-btn" aria-label="Copy response" onClick={copy}>
+              {copied ? <CheckIcon /> : <CopyIcon />}
+            </button>
+          </div>
+        </>
+      ) : (
+        <p className="mt-2 truncate text-sm text-zinc-400">{text}</p>
+      )}
+    </article>
   )
 }
 
-export function TypingIndicator({ label }: { label: string }) {
+export function Thinking({ detail }: { detail?: string }) {
   return (
-    <div className="flex items-center gap-2 text-sm text-zinc-500" aria-live="polite">
-      <span className="flex gap-1">
-        <i className="dot h-1.5 w-1.5 rounded-full bg-zinc-400" />
-        <i className="dot h-1.5 w-1.5 rounded-full bg-zinc-400" />
-        <i className="dot h-1.5 w-1.5 rounded-full bg-zinc-400" />
-      </span>
-      {label}
+    <div className="flex items-center gap-2.5 px-1 text-sm text-zinc-500" aria-live="polite">
+      <HourglassIcon width={15} height={15} className="animate-pulse" />
+      <span className="font-medium">Thinking…</span>
+      {detail && <span className="truncate text-zinc-400">{detail}</span>}
     </div>
   )
 }
