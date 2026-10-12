@@ -6,16 +6,20 @@ import CartStatus from '../components/CartStatus/CartStatus'
 import { AgentMessage, DayDivider, Thinking, UserMessage } from '../components/Chat/Chat'
 import Composer from '../components/Chat/Composer'
 import { FOLLOW_UP_PROMPTS, STARTER_PROMPTS } from '../components/Chat/PromptLibrary'
+import { CheckIcon } from '../components/icons'
 import ProductCard, { CompactCard } from '../components/ProductCard/ProductCard'
 import ProductComparison from '../components/ProductComparison/ProductComparison'
 import Shell from '../components/Shell/Shell'
 import UserAction from '../components/UserAction/UserAction'
 import { useShoppingSession } from '../hooks/useShoppingSession'
 import { errorMessage } from '../services/api'
+import { useSessionPrefs } from '../services/sessionPrefs'
 import { approve, cancelSession, continueSession, inr, sendChat } from '../services/shopping'
 import { dayLabel } from '../services/time'
 import type { Product } from '../types/product'
 import type { Comparison, Recommendation, ShoppingSession as Session } from '../types/shopping'
+
+const NO_MATCH_CHIPS = ['Increase my budget by 20% and search again', 'Change the requirement most options miss and search again']
 
 const CHIPS = ['Why did you choose this one?', 'Show me a cheaper alternative', 'Which option has the best reviews?']
 
@@ -43,7 +47,10 @@ function RecommendationBlock({
               <h3 className="mb-1.5 font-semibold text-zinc-900">Why this product</h3>
               <ul className="space-y-1 text-zinc-600">
                 {(rec.reasons ?? []).map((r) => (
-                  <li key={r}>✓ {r}</li>
+                  <li key={r} className="flex gap-2">
+                    <CheckIcon width={14} height={14} className="mt-0.5 shrink-0 text-emerald-600" />
+                    {r}
+                  </li>
                 ))}
               </ul>
             </div>
@@ -81,6 +88,7 @@ function RecommendationBlock({
 
 export default function ShoppingSession() {
   const { id } = useParams()
+  const prefs = useSessionPrefs()
   const { session, events, error, refresh } = useShoppingSession(id)
   const [alternative, setAlternative] = useState<Product | null>(null)
   const [acting, setActing] = useState(false)
@@ -202,7 +210,7 @@ export default function ShoppingSession() {
   })
 
   const footer = (
-    <div className="shrink-0 px-4 pb-4 pt-1 sm:px-6">
+    <div className="shrink-0 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 md:px-6">
       <div className="mx-auto w-full max-w-[760px]">
         <Composer
           value={text}
@@ -211,15 +219,15 @@ export default function ShoppingSession() {
           prompts={rec?.product ? FOLLOW_UP_PROMPTS : STARTER_PROMPTS}
           disabled={busy}
           sending={sending}
-          placeholder={busy ? 'CartMind is working…' : 'Ask me anything'}
+          placeholder={busy ? 'CartMind is working…' : 'Ask a follow-up, or refine what you need…'}
         />
       </div>
     </div>
   )
 
   return (
-    <Shell footer={footer} control={{ busy, onCancel: () => void run(() => cancelSession(id)) }}>
-      <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6">
+    <Shell footer={footer} title={prefs.titles[id] ?? session.query} status={status} control={{ busy, onCancel: () => void run(() => cancelSession(id)) }}>
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 md:px-6">
         <div className="mx-auto w-full max-w-[760px]">
           {thread.map((el, i) => (
             <Fragment key={i}>{el}</Fragment>
@@ -233,9 +241,28 @@ export default function ShoppingSession() {
                   <div key={n.product.id}>
                     <CompactCard product={n.product} index={i} />
                     <p className="mt-1 text-xs text-amber-700">Misses: {n.fails}</p>
+                    {n.product.url.startsWith('http') && (
+                      <a href={n.product.url} target="_blank" rel="noreferrer" className="mt-1 inline-block text-xs text-blue-600 hover:underline">
+                        View listing ↗
+                      </a>
+                    )}
                   </div>
                 ))}
               </div>
+              {!busy && (
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {NO_MATCH_CHIPS.map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => void submit(c)}
+                      disabled={sending}
+                      className="rounded-xl bg-zinc-100 px-3 py-2 text-[13px] text-zinc-700 transition hover:bg-zinc-200 disabled:opacity-50"
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
