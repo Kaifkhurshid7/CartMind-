@@ -37,15 +37,15 @@ export default function HistoryItem({ session, title, active, onNavigate, onRena
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
         onKeyDown={onKey}
-        className="h-9 w-full rounded-lg border border-zinc-300 bg-white px-3 text-[14px] text-zinc-900 outline-none focus:ring-2 focus:ring-zinc-900/20"
+        className="h-9 w-full rounded-control border border-line-strong bg-white px-3 text-[14px] text-fg outline-none focus:ring-2 focus:ring-primary/10"
       />
     )
   }
 
   return (
     <div
-      className={`group flex h-9 items-center rounded-lg transition ${
-        active ? 'bg-zinc-200/70 text-zinc-900' : 'text-zinc-700 hover:bg-zinc-200/40'
+      className={`group flex h-9 items-center rounded-control transition-colors duration-fast ${
+        active ? 'bg-active-nav text-fg' : 'text-fg-2 hover:bg-hover-nav hover:text-fg'
       }`}
     >
       <Link
@@ -53,12 +53,10 @@ export default function HistoryItem({ session, title, active, onNavigate, onRena
         onClick={onNavigate}
         title={`${title} · ${timeAgo(session.created_at)}`}
         aria-current={active ? 'page' : undefined}
-        className={`flex h-full min-w-0 flex-1 items-center gap-2 rounded-lg px-3 text-[14px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/30 ${
-          active ? 'font-medium' : ''
-        }`}
+        className={`flex h-full min-w-0 flex-1 items-center gap-2 rounded-control px-3 text-[14px] focus-ring ${active ? 'font-medium' : ''}`}
       >
         <span className="min-w-0 flex-1 truncate">{title}</span>
-        <span className="group-hover:hidden group-focus-within:hidden">
+        <span className="group-focus-within:hidden group-hover:hidden">
           <StatusDot status={session.status} />
         </span>
       </Link>

@@ -1,7 +1,7 @@
 import { ReactNode, useState } from 'react'
 import { stripEmoji } from '../../services/text'
 import { timeAgo } from '../../services/time'
-import { CheckIcon, ChevronDown, CopyIcon, FilledThumb, HourglassIcon, LogoMark, ThumbDown, ThumbUp } from '../icons'
+import { CheckIcon, ChevronDown, CopyIcon, FilledThumb, LogoMark, ThumbDown, ThumbUp } from '../icons'
 
 export function DayDivider({ label }: { label: string }) {
   return (
@@ -19,7 +19,7 @@ export function UserMessage({ text, at }: { text: string; at?: string }) {
     <div className="flex justify-end">
       <p
         title={at ? timeAgo(at) : undefined}
-        className="max-w-[80%] whitespace-pre-wrap rounded-3xl bg-zinc-100 px-5 py-3 text-[15px] leading-6 text-zinc-800"
+        className="max-w-[80%] animate-fade-up whitespace-pre-wrap break-words rounded-3xl bg-hover px-5 py-3 text-[15px] leading-6 text-fg"
       >
         {text}
       </p>
@@ -78,7 +78,7 @@ export function AgentMessage({
   }
 
   return (
-    <article className="group rounded-2xl border border-zinc-200 bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+    <article className="group animate-fade-up rounded-card border border-line bg-white p-5 shadow-soft">
       <div className="flex items-center justify-between">
         <LogoMark size={24} />
         <div className="flex items-center gap-1">
@@ -140,10 +140,14 @@ export function AgentMessage({
 
 export function Thinking({ detail }: { detail?: string }) {
   return (
-    <div className="flex items-center gap-2.5 px-1 text-sm text-zinc-500" aria-live="polite">
-      <HourglassIcon width={15} height={15} className="animate-pulse" />
-      <span className="font-medium">Thinking…</span>
-      {detail && <span className="truncate text-zinc-400">{detail}</span>}
+    <div className="flex items-center gap-2.5 px-1 text-sm text-fg-2" aria-live="polite" role="status">
+      <span className="flex items-center gap-1" aria-hidden="true">
+        <span className="dot h-1.5 w-1.5 rounded-full bg-fg-2" />
+        <span className="dot h-1.5 w-1.5 rounded-full bg-fg-2" />
+        <span className="dot h-1.5 w-1.5 rounded-full bg-fg-2" />
+      </span>
+      <span className="font-medium">Working on it</span>
+      {detail && <span className="min-w-0 truncate text-fg-3">{detail}</span>}
     </div>
   )
 }
