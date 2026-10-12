@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { CheckIcon, SearchIcon } from '../icons'
+import { KeyboardEvent, useMemo, useState } from 'react'
+import { SearchIcon, SparkIcon } from '../icons'
 
 export const STARTER_PROMPTS = [
   'Find a laptop under ₹50,000 for coding with 16GB RAM and 512GB SSD',
@@ -17,56 +17,77 @@ export const FOLLOW_UP_PROMPTS = [
   'Prioritise battery life over price',
 ]
 
-/** Dark translucent picker with search, as in the reference design. */
+/** Light suggestion picker: searchable list of ready-made shopping requests. */
 export default function PromptLibrary({
   prompts,
   onPick,
+  title = 'Shopping ideas',
+  maxListHeight = 256,
 }: {
   prompts: string[]
   onPick: (prompt: string) => void
+  title?: string
+  /** Pixels available for the list so the popup never leaves the viewport. */
+  maxListHeight?: number
 }) {
   const [query, setQuery] = useState('')
-  const [hover, setHover] = useState(0)
-  const shown = useMemo(
-    () => prompts.filter((p) => p.toLowerCase().includes(query.trim().toLowerCase())),
-    [prompts, query],
-  )
+  const [active, setActive] = useState(0)
+  const shown = useMemo(() => prompts.filter((p) => p.toLowerCase().includes(query.trim().toLowerCase())), [prompts, query])
+
+  function onKey(e: KeyboardEvent) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setActive((i) => Math.min(i + 1, shown.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActive((i) => Math.max(i - 1, 0))
+    } else if (e.key === 'Enter' && shown[active]) {
+      e.preventDefault()
+      onPick(shown[active])
+    }
+  }
 
   return (
-    <div className="w-[min(92vw,430px)] overflow-hidden rounded-2xl bg-zinc-800/95 p-1.5 text-sm text-zinc-100 shadow-2xl backdrop-blur">
-      <ul className="max-h-64 overflow-y-auto" role="listbox">
-        {shown.length === 0 && <li className="px-3 py-2 text-zinc-400">No matching prompts</li>}
+    <div className="w-[min(92vw,460px)] animate-fade-in overflow-hidden rounded-card border border-line bg-white shadow-lg">
+      <div className="border-b border-line p-2">
+        <label className="flex h-9 items-center gap-2 rounded-control px-2 text-fg-3 focus-within:bg-hover">
+          <SearchIcon width={15} height={15} className="shrink-0" />
+          <input
+            autoFocus
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value)
+              setActive(0)
+            }}
+            onKeyDown={onKey}
+            placeholder="Search ideas"
+            aria-label="Search shopping ideas"
+            className="min-w-0 flex-1 bg-transparent text-[14px] text-fg outline-none placeholder:text-placeholder"
+          />
+        </label>
+      </div>
+
+      <p className="px-4 pb-1 pt-3 text-[12px] font-medium text-fg-3">{title}</p>
+      <ul className="thread-scroll overflow-y-auto overscroll-contain px-2 pb-2" style={{ maxHeight: maxListHeight }} role="listbox" aria-label={title}>
+        {shown.length === 0 && <li className="px-3 py-3 text-[13px] text-fg-3">No matching ideas</li>}
         {shown.map((p, i) => (
           <li key={p}>
             <button
               type="button"
               role="option"
-              aria-selected={i === hover}
-              onMouseEnter={() => setHover(i)}
+              aria-selected={i === active}
+              onMouseEnter={() => setActive(i)}
               onClick={() => onPick(p)}
-              className={`flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left transition ${
-                i === hover ? 'bg-zinc-600/70 text-white' : 'text-zinc-200'
+              className={`flex w-full items-start gap-3 rounded-control px-3 py-2.5 text-left text-[14px] leading-5 transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
+                i === active ? 'bg-hover text-fg' : 'text-fg-2'
               }`}
             >
-              <span>{p}</span>
-              {i === hover && <CheckIcon width={14} height={14} className="shrink-0 text-zinc-300" />}
+              <SparkIcon width={15} height={15} className="mt-0.5 shrink-0 text-fg-3" />
+              <span className="min-w-0 flex-1">{p}</span>
             </button>
           </li>
         ))}
       </ul>
-      <label className="mt-1 flex items-center gap-2 border-t border-white/10 px-3 py-2.5 text-zinc-400">
-        <SearchIcon width={15} height={15} />
-        <input
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value)
-            setHover(0)
-          }}
-          placeholder="Search…"
-          aria-label="Search prompts"
-          className="w-full bg-transparent text-zinc-100 outline-none placeholder:text-zinc-500"
-        />
-      </label>
     </div>
   )
 }

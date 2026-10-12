@@ -133,7 +133,7 @@ export default function Sidebar({ health, rail, onToggleRail, onNavigate }: Prop
             {groups.map((g) => (
               <section key={g.label} className="mb-3">
                 <h3 className="px-3 pb-1.5 pt-1 text-[12px] font-medium text-fg-3">{g.label}</h3>
-                <ul className="space-y-0.5">
+                <ul className="divide-y divide-line overflow-hidden rounded-control border border-line bg-white">
                   {g.items.map((s) => (
                     <li key={s.id}>
                       <HistoryItem
