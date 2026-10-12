@@ -1,6 +1,7 @@
 import { ReactNode, useState } from 'react'
+import { stripEmoji } from '../../services/text'
 import { timeAgo } from '../../services/time'
-import { CheckIcon, ChevronDown, CopyIcon, HourglassIcon, LogoMark, ThumbDown, ThumbUp } from '../icons'
+import { CheckIcon, ChevronDown, CopyIcon, FilledThumb, HourglassIcon, LogoMark, ThumbDown, ThumbUp } from '../icons'
 
 export function DayDivider({ label }: { label: string }) {
   return (
@@ -45,6 +46,7 @@ export function AgentMessage({
   onChip?: (chip: string) => void
 }) {
   const key = `cartmind:vote:${id}`
+  const clean = stripEmoji(text)
   const [open, setOpen] = useState(true)
   const [copied, setCopied] = useState(false)
   const [vote, setVote] = useState<Vote>(() => {
@@ -67,7 +69,7 @@ export function AgentMessage({
   }
   async function copy() {
     try {
-      await navigator.clipboard.writeText(text)
+      await navigator.clipboard.writeText(clean)
       setCopied(true)
       setTimeout(() => setCopied(false), 1200)
     } catch {
@@ -89,7 +91,7 @@ export function AgentMessage({
 
       {open ? (
         <>
-          <p className="mt-3 whitespace-pre-wrap text-[15px] leading-7 text-zinc-800">{text}</p>
+          <p className="mt-3 whitespace-pre-wrap text-[15px] leading-7 text-zinc-800">{clean}</p>
           {children && <div className="mt-4 space-y-4">{children}</div>}
           {chips && chips.length > 0 && (
             <div className="mt-4 flex flex-wrap gap-2">
@@ -104,20 +106,33 @@ export function AgentMessage({
               ))}
             </div>
           )}
-          <div className="mt-3 flex items-center gap-0.5 opacity-60 transition group-hover:opacity-100">
-            <button className={`icon-btn ${vote === 'up' ? '!text-zinc-900' : ''}`} aria-label="Good response" aria-pressed={vote === 'up'} onClick={() => choose('up')}>
-              <ThumbUp />
+          <div className="mt-3 flex items-center gap-1 text-zinc-500">
+            <button
+              className={`icon-btn !h-8 !w-8 ${vote === 'up' ? '!bg-emerald-50 !text-emerald-700' : ''}`}
+              aria-label="Good response"
+              title="Good response"
+              aria-pressed={vote === 'up'}
+              onClick={() => choose('up')}
+            >
+              {vote === 'up' ? <FilledThumb /> : <ThumbUp />}
             </button>
-            <button className={`icon-btn ${vote === 'down' ? '!text-zinc-900' : ''}`} aria-label="Bad response" aria-pressed={vote === 'down'} onClick={() => choose('down')}>
-              <ThumbDown />
+            <button
+              className={`icon-btn !h-8 !w-8 ${vote === 'down' ? '!bg-rose-50 !text-rose-700' : ''}`}
+              aria-label="Bad response"
+              title="Bad response"
+              aria-pressed={vote === 'down'}
+              onClick={() => choose('down')}
+            >
+              {vote === 'down' ? <FilledThumb down /> : <ThumbDown />}
             </button>
-            <button className="icon-btn" aria-label="Copy response" onClick={copy}>
+            {vote && <span className="ml-1 text-xs text-zinc-500" aria-live="polite">Thanks for the feedback</span>}
+            <button className="icon-btn !h-8 !w-8" aria-label="Copy response" title="Copy response" onClick={copy}>
               {copied ? <CheckIcon /> : <CopyIcon />}
             </button>
           </div>
         </>
       ) : (
-        <p className="mt-2 truncate text-sm text-zinc-400">{text}</p>
+        <p className="mt-2 truncate text-sm text-zinc-400">{clean}</p>
       )}
     </article>
   )
