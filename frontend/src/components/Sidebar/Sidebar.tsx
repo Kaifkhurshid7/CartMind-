@@ -4,9 +4,12 @@ import type { Health } from '../../hooks/useHealth'
 import { groupByDate, hideSession, renameSession, useSessionPrefs } from '../../services/sessionPrefs'
 import { listSessions } from '../../services/shopping'
 import type { SessionSummary } from '../../types/shopping'
-import { ClockIcon, GearIcon, HomeIcon, LogoMark, PlusIcon, SearchIcon, SidebarIcon } from '../icons'
+import { ClockIcon, GearIcon, HomeIcon, LogoMark, SearchIcon, SidebarIcon } from '../icons'
+import { NavLabel, navRowCls } from '../ui/NavRow'
 import Popover from '../ui/Popover'
 import HistoryItem from './HistoryItem'
+
+const USER_NAME = 'Kaif Khurshid'
 
 interface Props {
   health: Health | null
@@ -17,20 +20,15 @@ interface Props {
   onNavigate: () => void
 }
 
-const navCls = (active: boolean, rail: boolean) =>
-  `flex h-9 items-center gap-3 rounded-lg text-[14px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/30 ${
-    rail ? 'w-9 justify-center' : 'px-3'
-  } ${active ? 'bg-zinc-200/70 font-medium text-zinc-900' : 'text-zinc-600 hover:bg-zinc-200/40 hover:text-zinc-900'}`
-
 function SectionLabel({ children }: { children: string }) {
-  return <p className="px-3 pb-1 pt-4 text-[12px] font-medium uppercase tracking-wider text-zinc-400">{children}</p>
+  return <p className="animate-fade-in px-3 pb-1 pt-4 text-[12px] font-medium uppercase tracking-wider text-fg-3">{children}</p>
 }
 
 function Row({ k, v }: { k: string; v: string }) {
   return (
     <div className="flex items-start justify-between gap-3 py-1.5 text-[13px]">
-      <span className="text-zinc-500">{k}</span>
-      <span className="text-right font-medium text-zinc-800">{v}</span>
+      <span className="text-fg-3">{k}</span>
+      <span className="text-right font-medium text-fg">{v}</span>
     </div>
   )
 }
@@ -67,86 +65,64 @@ export default function Sidebar({ health, rail, onToggleRail, onNavigate }: Prop
   }, [items, prefs.hidden, search, titleOf])
 
   const hasAny = items.some((s) => !prefs.hidden.includes(s.id))
-  const newChat = () => {
-    navigate('/')
-    onNavigate()
-  }
 
   return (
-    <div className={`flex h-full min-h-0 flex-col bg-[#f7f7f5] py-3 ${rail ? 'items-center px-3' : 'px-3'}`}>
-      {/* Brand */}
-      <div className={`flex h-10 w-full items-center ${rail ? 'justify-center' : 'justify-between px-1'}`}>
+    <div className="flex h-full min-h-0 flex-col bg-sidebar px-4 py-4">
+      {/* Brand: logo, wordmark, collapse. In the rail the expand button takes its place. */}
+      <div className="flex h-10 shrink-0 items-center justify-between">
         {rail ? (
-          <button className="icon-btn !h-9 !w-9" aria-label="Expand sidebar" title="Expand sidebar" onClick={onToggleRail}>
-            <SidebarIcon width={18} height={18} />
+          <button className={navRowCls(false)} aria-label="Expand sidebar" title="Expand sidebar" onClick={onToggleRail}>
+            <SidebarIcon width={18} height={18} className="shrink-0" />
           </button>
         ) : (
           <>
-            <Link
-              to="/"
-              onClick={onNavigate}
-              className="flex items-center gap-2.5 rounded-lg text-[18px] font-semibold tracking-tight text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/30"
-            >
-              <LogoMark />
+            <Link to="/" onClick={onNavigate} className="flex items-center gap-2.5 rounded-control px-1 text-[18px] font-semibold tracking-tight text-fg focus-ring">
+              <LogoMark size={24} />
               CartMind
             </Link>
-            <button className="icon-btn hidden md:inline-flex" aria-label="Collapse sidebar" title="Collapse sidebar" onClick={onToggleRail}>
-              <SidebarIcon />
+            <button className="icon-btn hidden !h-8 !w-8 md:inline-flex" aria-label="Collapse sidebar" title="Collapse sidebar" onClick={onToggleRail}>
+              <SidebarIcon width={18} height={18} />
             </button>
           </>
         )}
       </div>
-      <div className="my-3 h-px w-full bg-zinc-200" />
-
-      {/* Primary action */}
-      <button
-        onClick={newChat}
-        aria-label="New shopping session"
-        title={rail ? 'New shopping session' : undefined}
-        className={`flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-zinc-900 text-[14px] font-medium text-white transition hover:bg-zinc-700 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/40 focus-visible:ring-offset-2 ${
-          rail ? 'w-10' : 'w-full'
-        }`}
-      >
-        <PlusIcon width={16} height={16} />
-        {!rail && 'New shopping session'}
-      </button>
 
       {/* Workspace */}
       {!rail && <SectionLabel>Workspace</SectionLabel>}
-      <nav className={`flex flex-col gap-0.5 ${rail ? 'mt-3 items-center' : 'w-full'}`} aria-label="Workspace">
-        <NavLink to="/" end onClick={onNavigate} title="Home" aria-label="Home" className={({ isActive }) => navCls(isActive, rail)}>
+      <nav className={`flex flex-col gap-0.5 ${rail ? 'mt-4' : ''}`} aria-label="Workspace">
+        <NavLink to="/" end onClick={onNavigate} title="Home" aria-label="Home" className={({ isActive }) => navRowCls(isActive)}>
           <HomeIcon width={18} height={18} className="shrink-0" />
-          {!rail && 'Home'}
+          <NavLabel hidden={rail}>Home</NavLabel>
         </NavLink>
-        <NavLink to="/history" onClick={onNavigate} title="All searches" aria-label="All searches" className={({ isActive }) => navCls(isActive, rail)}>
+        <NavLink to="/history" onClick={onNavigate} title="All searches" aria-label="All searches" className={({ isActive }) => navRowCls(isActive)}>
           <ClockIcon width={18} height={18} className="shrink-0" />
-          {!rail && 'All searches'}
+          <NavLabel hidden={rail}>All searches</NavLabel>
         </NavLink>
       </nav>
 
       {/* History: the only scrolling region */}
       {!rail ? (
-        <div className="flex min-h-0 w-full flex-1 flex-col">
+        <div className="flex min-h-0 flex-1 animate-fade-in flex-col">
           <SectionLabel>History</SectionLabel>
-          <label className="mb-2 flex h-9 shrink-0 items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 text-zinc-400 focus-within:border-zinc-300 focus-within:ring-2 focus-within:ring-zinc-900/10">
+          <label className="mb-2 flex h-9 shrink-0 items-center gap-2 rounded-control border border-line bg-white px-3 text-fg-3 transition-colors duration-fast focus-within:border-line-strong focus-within:ring-2 focus-within:ring-primary/10">
             <SearchIcon width={15} height={15} className="shrink-0" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search conversations"
               aria-label="Search conversations"
-              className="min-w-0 flex-1 bg-transparent text-[14px] text-zinc-900 outline-none placeholder:text-zinc-400"
+              className="min-w-0 flex-1 bg-transparent text-[14px] text-fg outline-none placeholder:text-placeholder"
             />
           </label>
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          <div className="-mr-2 min-h-0 flex-1 overflow-y-auto overscroll-contain pr-2">
             {groups.length === 0 && (
-              <p className="px-3 py-2 text-[13px] text-zinc-500">
+              <p className="px-3 py-2 text-[13px] text-fg-3">
                 {hasAny ? 'No conversations match your search.' : 'No conversations yet. Start a new session.'}
               </p>
             )}
             {groups.map((g) => (
               <section key={g.label} className="mb-2">
-                <h3 className="px-3 pb-1 pt-2 text-[12px] font-medium text-zinc-500">{g.label}</h3>
+                <h3 className="px-3 pb-1 pt-2 text-[12px] font-medium text-fg-3">{g.label}</h3>
                 <ul className="space-y-0.5">
                   {g.items.map((s) => (
                     <li key={s.id}>
@@ -173,17 +149,17 @@ export default function Sidebar({ health, rail, onToggleRail, onNavigate }: Prop
       )}
 
       {/* Bottom: settings + workspace */}
-      <div className={`relative mt-2 w-full shrink-0 border-t border-zinc-200 pt-3 ${rail ? 'flex flex-col items-center gap-2' : ''}`}>
+      <div className="relative mt-2 shrink-0 space-y-1 border-t border-line-sidebar pt-3">
         <Popover open={settingsOpen} onClose={closeSettings} className={`bottom-full mb-2 ${rail ? 'left-0 w-64' : 'inset-x-0'}`}>
-          <div className="rounded-xl border border-zinc-200 bg-white p-3 shadow-lg">
-            <p className="pb-1 text-[13px] font-semibold text-zinc-900">Settings</p>
-            <div className="divide-y divide-zinc-100">
+          <div className="rounded-card border border-line bg-white p-3 shadow-lg">
+            <p className="pb-1 text-[13px] font-semibold text-fg">Settings</p>
+            <div className="divide-y divide-line">
               <Row k="Mode" v={health?.shopping_mode ?? '…'} />
               <Row k="Model" v={health?.llm_model ?? (health ? 'none (rule-based)' : '…')} />
               <Row k="Shop" v={health?.site ?? '…'} />
               <Row k="AI key" v={health ? (health.llm_configured ? 'Configured' : 'Missing') : '…'} />
             </div>
-            <p className="pt-2 text-xs leading-relaxed text-zinc-500">
+            <p className="pt-2 text-xs leading-relaxed text-fg-3">
               Values come from the backend <code>.env</code>. CartMind never pays; it stops at the cart.
             </p>
           </div>
@@ -194,21 +170,19 @@ export default function Sidebar({ health, rail, onToggleRail, onNavigate }: Prop
           aria-expanded={settingsOpen}
           aria-label="Settings"
           title="Settings"
-          className={`${navCls(settingsOpen, rail)} ${rail ? '' : 'w-full'}`}
+          className={navRowCls(settingsOpen)}
         >
           <GearIcon width={18} height={18} className="shrink-0" />
-          {!rail && 'Settings'}
+          <NavLabel hidden={rail}>Settings</NavLabel>
         </button>
-        <div className={`flex items-center gap-3 ${rail ? '' : 'mt-1 px-3 py-1'}`}>
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-300 text-[13px] font-semibold text-zinc-700" aria-hidden="true">
-            C
+        <div className="flex h-11 items-center gap-3 overflow-hidden px-1.5">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-active-nav text-[13px] font-semibold text-fg-2" aria-hidden="true">
+            {USER_NAME.charAt(0)}
           </span>
-          {!rail && (
-            <span className="min-w-0 text-[13px] leading-tight">
-              <span className="block truncate font-medium text-zinc-800">Local workspace</span>
-              <span className="block truncate text-zinc-500">{health?.site ?? 'CartMind'}</span>
-            </span>
-          )}
+          <span className={`min-w-0 text-[13px] leading-tight transition-opacity duration-fast ${rail ? 'opacity-0' : 'opacity-100'}`}>
+            <span className="block truncate font-medium text-fg">{USER_NAME}</span>
+            <span className="block truncate text-fg-3">{health?.site ?? 'CartMind'}</span>
+          </span>
         </div>
       </div>
     </div>

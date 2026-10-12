@@ -38,10 +38,10 @@ export default function Home() {
         <div className="w-full max-w-[760px]">
           <div className="mb-6 text-center">
             <div className="mb-4 flex justify-center">
-              <LogoMark size={40} />
+              <LogoMark size={36} />
             </div>
-            <h1 className="text-[28px] font-semibold leading-9 tracking-tight text-zinc-900 sm:text-[32px] sm:leading-10">What are you looking for?</h1>
-            <p className="mx-auto mt-3 max-w-[560px] text-[15px] leading-6 text-zinc-600">
+            <h1 className="text-[28px] font-semibold leading-9 tracking-tight text-fg sm:text-[32px] sm:leading-10">What are you looking for?</h1>
+            <p className="mx-auto mt-3 max-w-[560px] text-[15px] leading-6 text-fg-2">
               Tell CartMind what you need. I&apos;ll research products, compare options, and help you find the right fit.
             </p>
           </div>
@@ -57,14 +57,14 @@ export default function Home() {
           />
           {error && <p className="mt-3 text-sm text-rose-600">{error}</p>}
 
-          <div className="mt-6 space-y-2">
+          <div className="mt-6 space-y-2.5">
             {STARTER_PROMPTS.slice(0, 3).map((p, i) => (
               <SuggestionCard key={p} text={p} onPick={setQuery} icon={SUGGESTION_ICONS[i]} />
             ))}
           </div>
         </div>
       </div>
-      <p className="shrink-0 px-4 pb-3 text-center text-[12px] text-zinc-500">
+      <p className="shrink-0 px-4 pb-3 text-center text-[12px] text-fg-3">
         CartMind asks for your approval before acting and always stops before payment.
       </p>
     </Shell>
