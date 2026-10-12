@@ -215,3 +215,9 @@ export const MoreIcon = (p: SVGProps<SVGSVGElement>) => (
     <circle cx="19" cy="12" r="1.6" />
   </svg>
 )
+
+export const ExternalIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}>
+    <path d="M7 17L17 7M8 7h9v9" />
+  </svg>
+)
