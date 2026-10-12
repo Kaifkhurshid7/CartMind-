@@ -64,8 +64,13 @@ class LLMClient:
     # ---- configuration ------------------------------------------------------------------------
 
     @property
+    def groq_keys(self) -> list[str]:
+        keys = [getattr(self.settings, "groq_api_key", ""), getattr(self.settings, "groq_api_key_2", "")]
+        return list(dict.fromkeys(k.strip() for k in keys if k and k.strip()))
+
+    @property
     def available(self) -> bool:
-        return self.keys.available or bool(self.settings.groq_api_key)
+        return self.keys.available or bool(self.groq_keys)
 
     @property
     def models(self) -> list[str]:
@@ -83,10 +88,11 @@ class LLMClient:
             )
         return self._models[cache_key]
 
-    def _groq_model(self, temperature: float):
+    def _groq_model(self, temperature: float, key: str | None = None):
         from langchain_groq import ChatGroq
 
-        return ChatGroq(model=self.settings.groq_model, api_key=self.settings.groq_api_key, temperature=temperature)
+        key = key or (self.groq_keys[0] if self.groq_keys else "")
+        return ChatGroq(model=self.settings.groq_model, api_key=key, temperature=temperature)
 
     @staticmethod
     def _messages(prompt: str, system: str | None):
@@ -168,37 +174,49 @@ class LLMClient:
                         self._park(key, model, OTHER_COOLDOWN)
         return False, None, last_exc
 
+    def _try_groq(self, temperature: float, call: Callable[[Any], Any]) -> tuple[bool, Any, Exception | None]:
+        last_exc: Exception | None = None
+        for key in self.groq_keys:
+            if not self._slot_ready(key, "groq"):
+                continue
+            try:
+                return True, call(self._groq_model(temperature, key)), None
+            except Exception as exc:  # noqa: BLE001
+                last_exc = exc
+                if is_quota_error(exc):
+                    seconds = cooldown_seconds(exc)
+                    log.warning("Groq key hit its limit; parking it for %ds", seconds)
+                elif is_permanent_error(exc) or is_model_unavailable(exc):
+                    seconds = 6 * HOURS
+                    log.warning("Groq refused this key/model (%s); parking it for 6h", _short(exc)[:100])
+                else:
+                    seconds = OTHER_COOLDOWN
+                    log.warning("Groq call failed: %s", _short(exc))
+                self._park(key, "groq", seconds)
+        return False, None, last_exc
+
     def _run(self, temperature: float, call: Callable[[Any], Any]) -> Any:
         last_exc: Exception | None = None
         waited = 0.0
         while True:
-            ok, result, exc = self._try_gemini(temperature, call)
-            if ok:
-                self.last_error = None
-                return result
-            last_exc = exc or last_exc
-
-            if self.settings.groq_api_key:
-                try:
-                    result = call(self._groq_model(temperature))
+            for attempt in (self._try_gemini, self._try_groq):
+                ok, result, exc = attempt(temperature, call)
+                if ok:
                     self.last_error = None
                     return result
-                except Exception as groq_exc:  # noqa: BLE001
-                    last_exc = groq_exc
-                    log.warning("Groq fallback failed: %s", _short(groq_exc))
-                break  # Groq was the last resort
+                last_exc = exc or last_exc
 
-            # No other provider: a brief wait beats failing the whole task.
+            # Nothing could answer right now: a brief wait beats failing the whole task.
             soon = self._soonest_recovery()
             if soon is None or soon > self.max_wait - waited:
                 break
-            log.info("All Gemini slots are busy; waiting %.0fs for one to recover", soon)
+            log.info("All model slots are busy; waiting %.0fs for one to recover", soon)
             time.sleep(soon + 0.3)
             waited += soon + 0.3
 
         if last_exc is not None:
             self.last_error = _short(last_exc)
-        elif not self.last_error:  # every key is parked: keep the earlier, more specific reason
+        elif not self.last_error:  # everything is parked: keep the earlier, more specific reason
             self.last_error = "No LLM provider configured"
         raise LLMUnavailable(str(last_exc) if last_exc else self.last_error)
 

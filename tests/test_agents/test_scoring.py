@@ -51,3 +51,38 @@ def test_products_without_a_category_can_be_scored_and_recommended():
     assert [p["suitability"] for p in scored] == sorted((p["suitability"] for p in scored), reverse=True)
     rec = build_recommendation(scored[0], scored, req)
     assert rec["product"]["id"] in {"web-1", "web-2"} and rec["reasons"]
+
+
+def _product(pid, name, price, rating, reviews, **extra):
+    return {"id": pid, "name": name, "brand": "X", "currency": "INR", "price": price, "rating": rating,
+            "review_count": reviews, "specs": extra.pop("specs", {}), "features": extra.pop("features", []),
+            "available": True, "source": "amazon.in", "url": "https://x", **extra}
+
+
+def test_category_families_map_free_text_to_scoring_logic():
+    from app.agents.comparison import family
+
+    assert family("laptop") == "laptop"
+    assert family("samsung galaxy tab s9") == "tablet"
+    assert family("55 inch smart tv") == "tv"
+    assert family("electric kettle") == "appliance"
+    assert family("paperback of atomic habits") == "book"
+    assert family("something obscure") == ""
+
+
+def test_tv_scoring_rewards_better_display_and_reviews():
+    req = normalize({"category": "55 inch 4k tv", "budget": {"maximum": 60000}})
+    plain = _product("a", "Brand 55 inch Full HD LED TV", 30000, 4.2, 800)
+    oled = _product("b", "Brand 55 inch OLED 4K TV", 30000, 4.2, 800)
+    scored = score_products([plain, oled], req)
+    assert scored[0]["id"] == "b"
+    assert "display" in scored[0]["score_breakdown"]
+
+
+def test_review_volume_breaks_equal_ratings():
+    req = normalize({"category": "electric kettle", "budget": {"maximum": 2000}})
+    few = _product("few", "Kettle A", 1000, 4.5, 12)
+    many = _product("many", "Kettle B", 1000, 4.5, 9000)
+    scored = score_products([few, many], req)
+    assert scored[0]["id"] == "many"
+    assert "confidence" in scored[0]["score_breakdown"]
