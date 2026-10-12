@@ -4,7 +4,14 @@
 
 :root { color-scheme: light; }
 html, body, #root { height: 100%; }
-body { @apply bg-[#e9eaec] text-zinc-900 font-sans antialiased; }
+body { @apply bg-[#ececea] text-zinc-900 font-sans antialiased; }
+
+/* faint paper texture behind the thread, like the reference */
+.surface {
+  background-image:
+    radial-gradient(60rem 18rem at 85% 105%, rgba(0, 0, 0, 0.035), transparent 70%),
+    radial-gradient(50rem 16rem at 10% 110%, rgba(0, 0, 0, 0.03), transparent 70%);
+}
 
 @layer components {
   .card { @apply rounded-2xl border border-zinc-200 bg-white p-4; }
