@@ -4,7 +4,7 @@ import type { Health } from '../../hooks/useHealth'
 import { groupByDate, hideSession, renameSession, useSessionPrefs } from '../../services/sessionPrefs'
 import { listSessions } from '../../services/shopping'
 import type { SessionSummary } from '../../types/shopping'
-import { ClockIcon, GearIcon, HomeIcon, LogoMark, SearchIcon, SidebarIcon } from '../icons'
+import { ChevronDown, ClockIcon, GearIcon, HomeIcon, LogoMark, SearchIcon, SidebarIcon } from '../icons'
 import { NavLabel, navRowCls } from '../ui/NavRow'
 import Popover from '../ui/Popover'
 import HistoryItem from './HistoryItem'
@@ -131,8 +131,8 @@ export default function Sidebar({ health, rail, onToggleRail, onNavigate }: Prop
               </p>
             )}
             {groups.map((g) => (
-              <section key={g.label} className="mb-2">
-                <h3 className="px-3 pb-1 pt-2 text-[12px] font-medium text-fg-3">{g.label}</h3>
+              <section key={g.label} className="mb-3">
+                <h3 className="px-3 pb-1.5 pt-1 text-[12px] font-medium text-fg-3">{g.label}</h3>
                 <ul className="space-y-0.5">
                   {g.items.map((s) => (
                     <li key={s.id}>
@@ -159,7 +159,7 @@ export default function Sidebar({ health, rail, onToggleRail, onNavigate }: Prop
       )}
 
       {/* Bottom: settings + workspace */}
-      <div className="relative mt-2 shrink-0 space-y-1 border-t border-line-sidebar pt-3">
+      <div className="relative mt-2 shrink-0 border-t border-line-sidebar pt-3">
         <Popover open={settingsOpen} onClose={closeSettings} className={`bottom-full mb-2 ${rail ? 'left-0 w-64' : 'inset-x-0'}`}>
           <div className="rounded-card border border-line bg-white p-4 shadow-lg">
             <p className="text-[14px] font-semibold text-fg">{USER_NAME}</p>
@@ -174,24 +174,29 @@ export default function Sidebar({ health, rail, onToggleRail, onNavigate }: Prop
             </p>
           </div>
         </Popover>
-        <button
-          onClick={() => setSettingsOpen((o) => !o)}
-          aria-haspopup="dialog"
-          aria-expanded={settingsOpen}
-          aria-label="Settings"
-          title="Settings"
-          className={navRowCls(settingsOpen)}
-        >
-          <GearIcon width={18} height={18} className="shrink-0" />
-          <NavLabel hidden={rail}>Settings</NavLabel>
-        </button>
-        <div className="flex h-11 items-center gap-3 overflow-hidden px-1.5">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-active-nav text-[13px] font-semibold text-fg-2" aria-hidden="true">
-            {USER_NAME.charAt(0)}
-          </span>
-          <span className={`min-w-0 text-[13px] leading-tight transition-opacity duration-fast ${rail ? 'opacity-0' : 'opacity-100'}`}>
-            <span className="block truncate font-medium text-fg">{USER_NAME}</span>
-          </span>
+        <div className="divide-y divide-line overflow-hidden rounded-control border border-line bg-white">
+          <button
+            onClick={() => setSettingsOpen((o) => !o)}
+            aria-haspopup="dialog"
+            aria-expanded={settingsOpen}
+            aria-label="Settings"
+            title="Settings"
+            className={`flex h-11 w-full items-center gap-3 whitespace-nowrap px-3 text-[14px] transition-colors duration-fast hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/30 ${
+              settingsOpen ? 'bg-hover text-fg' : 'text-fg-2 hover:text-fg'
+            }`}
+          >
+            <GearIcon width={18} height={18} className="shrink-0" />
+            <NavLabel hidden={rail}>Settings</NavLabel>
+            {!rail && <ChevronDown width={14} height={14} className="ml-auto shrink-0 -rotate-90 text-fg-3" />}
+          </button>
+          <div className="flex h-11 items-center gap-3 overflow-hidden px-3">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-active-nav text-[11px] font-semibold text-fg-2" aria-hidden="true">
+              {USER_NAME.charAt(0)}
+            </span>
+            <span className={`min-w-0 truncate text-[14px] font-medium text-fg transition-opacity duration-fast ${rail ? 'opacity-0' : 'opacity-100'}`}>
+              {USER_NAME}
+            </span>
+          </div>
         </div>
       </div>
     </div>

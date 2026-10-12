@@ -44,7 +44,7 @@ export default function HistoryItem({ session, title, active, onNavigate, onRena
 
   return (
     <div
-      className={`group flex h-9 items-center rounded-control transition-colors duration-fast ${
+      className={`group flex min-h-10 items-center rounded-control transition-colors duration-fast ${
         active ? 'bg-active-nav text-fg' : 'text-fg-2 hover:bg-hover-nav hover:text-fg'
       }`}
     >
@@ -53,9 +53,9 @@ export default function HistoryItem({ session, title, active, onNavigate, onRena
         onClick={onNavigate}
         title={`${title} · ${timeAgo(session.created_at)}`}
         aria-current={active ? 'page' : undefined}
-        className={`flex h-full min-w-0 flex-1 items-center gap-2 rounded-control px-3 text-[14px] focus-ring ${active ? 'font-medium' : ''}`}
+        className={`flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-control px-3 py-1.5 text-[13.5px] leading-[18px] focus-ring ${active ? 'font-medium' : ''}`}
       >
-        <span className="min-w-0 flex-1 truncate">{title}</span>
+        <span className="line-clamp-2 min-w-0 flex-1 break-words">{title}</span>
         <span className="group-focus-within:hidden group-hover:hidden">
           <StatusDot status={session.status} />
         </span>

@@ -28,6 +28,8 @@ export default {
       borderRadius: { control: '0.75rem', card: '1rem' },
       boxShadow: { soft: 'var(--shadow-soft)', composer: 'var(--shadow-composer)' },
       transitionDuration: { fast: '150ms', base: '200ms' },
+      // One place to keep type light: semibold renders as medium, bold as semibold.
+      fontWeight: { semibold: '500', bold: '600' },
       fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
       keyframes: {
         'fade-in': { from: { opacity: '0' }, to: { opacity: '1' } },
