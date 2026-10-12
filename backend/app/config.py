@@ -16,7 +16,13 @@ class Settings(BaseSettings):
     gemini_api_key_1: str = ""
     gemini_api_key_2: str = ""
     gemini_api_key_3: str = ""
-    gemini_model: str = "gemini-2.5-flash"
+    gemini_model: str = "gemini-3.8-flash"
+    # Tried when the primary model is busy or rate-limited (quotas are per model).
+    gemini_fallback_models: str = "gemini-3.5-flash,gemini-flash-lite-latest"
+    # Pause between calls to the same model, to stay under per-minute free-tier limits.
+    llm_min_interval_seconds: float = 2.5
+    # Longest a single call will wait for a rate-limited model to recover before giving up.
+    llm_max_wait_seconds: int = 90
 
     groq_api_key: str = ""
     groq_model: str = "llama-3.3-70b-versatile"
@@ -36,7 +42,11 @@ class Settings(BaseSettings):
     agent_headless: bool = False
     agent_browser_channel: str = "chrome"  # use the installed Chrome; falls back to bundled Chromium
     browser_profile_dir: str = str(BASE_DIR / "browser_profile")
-    agent_research_steps: int = 20
+    agent_research_steps: int = 12
+    # How many candidates to collect before stopping (and how many are shown to the shopper).
+    agent_max_products: int = 5
+    # "shop": begin on the Amazon.in results page (fast). "google": start from a web search (slower, often blocked).
+    agent_start: str = "shop"
     # Try the scripted Amazon.in add-to-cart (no LLM calls) before falling back to the AI agent.
     agent_fast_path: bool = True
     agent_shopping_steps: int = 18

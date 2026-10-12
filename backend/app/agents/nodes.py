@@ -123,8 +123,16 @@ def replanning_node(state: ShoppingState) -> dict:
     if near:
         lines = "; ".join(f"{n['product']['name']} ({format_inr(n['product']['price'])}) misses only: {n['fails']}" for n in near)
         message = f"No product meets every requirement. Closest options: {lines}. Want me to relax that requirement?"
+    elif state.get("rejected_products"):
+        rejected = state["rejected_products"]
+        detail = "; ".join(f"{r['name'][:60]} ({', '.join(r['reasons'][:2])})" for r in rejected[:3])
+        more = f", and {len(rejected) - 3} more" if len(rejected) > 3 else ""
+        message = (
+            f"I checked {len(state.get('search_results', []))} products but none passed your requirements. "
+            f"Why: {detail}{more}. You can relax a requirement or raise the budget and I will search again."
+        )
     else:
-        message = "I couldn't find any product that meets your requirements. Try raising the budget or relaxing a spec."
+        message = "I couldn't find any products for that request. Try rewording it or searching for something more specific."
     _emit(state, "research", "No exact matches found", "error")
     sessions.update_session(
         sid, status="no_results", current_step="replan", near_misses=near, shortlisted_products=[],
@@ -140,7 +148,7 @@ def replanning_node(state: ShoppingState) -> dict:
 def comparison_node(state: ShoppingState) -> dict:
     sid = state["session_id"]
     _emit(state, "compare", f"Comparing {len(state['shortlisted_products'])} products")
-    scored = comparison.score_products(state["shortlisted_products"], state["requirements"])
+    scored = comparison.score_products(state["shortlisted_products"], state["requirements"])[: get_settings().agent_max_products]
     table = comparison.build_comparison(scored, state["requirements"])
     sessions.update_session(sid, current_step="compare", shortlisted_products=scored, comparison=table)
     return {"shortlisted_products": scored, "comparison": table, "current_step": "compare"}
