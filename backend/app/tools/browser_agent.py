@@ -15,7 +15,7 @@ import hashlib
 import re
 from dataclasses import dataclass, field
 from typing import Callable, Literal
-from urllib.parse import urlparse
+from urllib.parse import quote_plus, urljoin, urlparse
 
 from pydantic import BaseModel, Field
 from playwright.sync_api import Error as PlaywrightError
@@ -106,6 +106,12 @@ class ReportProduct(BaseModel):
     specs: str | None = Field(default=None, description="Specs you saw on the page, e.g. '16GB RAM, 512GB SSD, i5'")
 
 
+class ReportProducts(BaseModel):
+    """Record several verified candidate products at once (preferred: one call instead of many)."""
+
+    products: list[ReportProduct]
+
+
 class ConfirmPrice(BaseModel):
     """On the product page, report the price currently displayed. Required before clicking Add to Cart."""
 
@@ -121,9 +127,9 @@ class Finish(BaseModel):
 
 
 COMMON_TOOLS = [Goto, Click, TypeText, PressKey, Scroll, ReadMore, GoBack, AskUser]
-RESEARCH_TOOLS = [*COMMON_TOOLS, ReportProduct, Finish]
+RESEARCH_TOOLS = [*COMMON_TOOLS, ReportProducts, ReportProduct, Finish]
 SHOPPING_TOOLS = [*COMMON_TOOLS, ConfirmPrice, Finish]
-TOOL_BY_NAME = {t.__name__: t for t in [*COMMON_TOOLS, ReportProduct, ConfirmPrice, Finish]}
+TOOL_BY_NAME = {t.__name__: t for t in [*COMMON_TOOLS, ReportProducts, ReportProduct, ConfirmPrice, Finish]}
 
 # ---- guardrails ----------------------------------------------------------------------------------
 
@@ -355,6 +361,7 @@ def _describe(name: str, args: dict, label: str = "") -> str:
         "ReadMore": "Reading more of the page",
         "GoBack": "Going back",
         "AskUser": "Waiting for you",
+        "ReportProducts": f"Recording {len(args.get('products') or [])} products",
         "ReportProduct": f"Found: {str(args.get('name', ''))[:60]} — ₹{int(args.get('price_inr') or 0):,}",
         "ConfirmPrice": f"Checking displayed price ₹{int(args.get('observed_price_inr') or 0):,}",
         "Finish": f"Finished ({args.get('outcome')})",
@@ -374,8 +381,10 @@ class BrowsingAgent:
         expected_price: float | None = None,
         accept_price_change: bool = False,
         max_products: int = 10,
+        category: str = "",
     ) -> None:
         self.b = browser
+        self.category = category
         self.goal, self.tools, self.max_steps = goal, tools, max_steps
         self.emit, self.ask_user = emit, ask_user
         self.expected_price = expected_price
@@ -464,12 +473,15 @@ class BrowsingAgent:
             return "The user says they are done. Look at the page again."
         if name == "ReportProduct":
             return self._report(a)
+        if name == "ReportProducts":
+            notes = [self._report(item) for item in (a.get("products") or [])]
+            return f"{len(self.result.products)} recorded. " + " ".join(n for n in notes if not n.startswith("Recorded"))
         if name == "ConfirmPrice":
             return self._confirm_price(float(a["observed_price_inr"]))
         raise Refused(f"Unknown tool {name}")
 
     def _report(self, a: dict) -> str:
-        url = str(a.get("url", ""))
+        url = urljoin(self.b.page.url, str(a.get("url", "")))
         try:
             check_url(url, self.allowed)
         except Refused as err:
@@ -486,6 +498,7 @@ class BrowsingAgent:
             "name": a["name"] if len(a["name"]) <= 110 else a["name"][:107].rstrip(" ,-") + "…",
             "full_title": a["name"],
             "brand": a["name"].split()[0].strip(",") if a["name"].split() else "",
+            "category": self.category,
             "price": price,
             "currency": "INR",
             "specs": parse_title_specs(text),
@@ -569,7 +582,7 @@ class BrowsingAgent:
                 except (PlaywrightError, PlaywrightTimeout) as exc:
                     feedback = f"That action failed ({exc.__class__.__name__}); the page may have changed. Look again."
                 self.history.append(f"{step}. {name}({self._short(args)}) -> {feedback[:160]}")
-                if name == "ReportProduct" and len(self.result.products) >= self.max_products:
+                if name in ("ReportProduct", "ReportProducts") and len(self.result.products) >= self.max_products:
                     self.result.outcome, self.result.summary = "done", "Collected enough candidates."
                     return self.result
             self.result.outcome = self.result.outcome if self.result.products else "failed"
@@ -612,7 +625,10 @@ class _Stop(Exception):
 
 
 def _requirements_text(req: dict) -> str:
-    lines = [f"Product category: {req.get('category')}"]
+    lines = []
+    if req.get("search_text"):
+        lines.append(f"The shopper's exact request: \"{req['search_text']}\"")
+    lines.append(f"Product category: {req.get('category')}")
     budget = (req.get("budget") or {}).get("maximum")
     if budget:
         lines.append(f"Budget: at most ₹{int(budget):,}")
@@ -631,24 +647,53 @@ def research_with_agent(
     requirements: dict, emit: Callable[[str, str], None], ask_user: Callable[[str], bool]
 ) -> Outcome:
     s = get_settings()
+    n = s.agent_max_products
+    start_url = None
+    if s.agent_start == "shop":
+        from app.tools.amazon_tool import BASE, build_query
+
+        maximum = (requirements.get("budget") or {}).get("maximum")
+        start_url = f"{BASE}/s?k={quote_plus(build_query(requirements))}"
+        if maximum:
+            start_url += f"&rh=p_36%3A-{int(maximum * 100)}"  # price filter, in paise
+
+    if start_url:
+        how = (
+            "You are ALREADY on the Amazon.in search results for this request, so do not use a search engine.\n"
+            "1. Read the results on this page. Scroll down at most once or twice if you need to see more.\n"
+            f"2. Call report_products ONCE with the {n} best candidates that are within budget and meet the mandatory "
+            "specs. For each give the exact name, the displayed price, rating, review count, specs you saw, and the "
+            "product page URL (use the link shown for that result). Prefer products with many reviews.\n"
+            "3. Then call finish with outcome 'done'.\n"
+            "Do not open individual product pages unless the results page does not show a price."
+        )
+    else:
+        how = (
+            "1. Open https://www.google.com and search for the product (include key specs). If Google shows a robot "
+            "check, use https://www.bing.com or https://duckduckgo.com instead, or go straight to Amazon.in / Flipkart.\n"
+            "2. Go to Amazon.in and/or Flipkart. Use the site's own search box and filters.\n"
+            f"3. Call report_products with the {n} best candidates within budget that meet the mandatory specs (exact "
+            "name, price, rating, review count, specs, product page URL), then call finish with outcome 'done'."
+        )
     goal = (
-        "Find good candidate products for this shopper by browsing the real web.\n\n"
-        f"{_requirements_text(requirements)}\n\n"
-        "How to work:\n"
-        "1. Open https://www.google.com and search for the product (include key specs). If Google shows a robot check, use https://www.bing.com or https://duckduckgo.com instead, or go straight to Amazon.in / Flipkart.\n"
-        "2. Go to Amazon.in and/or Flipkart (via the search results, or by opening the site). Use the site's own "
-        "search box and, if helpful, its filters/sort.\n"
-        "3. For each promising result whose price is within budget and that meets the mandatory specs, call "
-        "report_product with the exact name, price, rating, review count, specs you saw, and the product page URL.\n"
-        "4. Report 6-10 solid candidates from one or both sites (prefer products with many reviews), then call finish "
-        "with outcome 'done'.\n"
+        "Find good candidate products for this shopper by browsing the real web. Work quickly: collect "
+        f"{n} solid candidates, not an exhaustive list.\n\n"
+        f"{_requirements_text(requirements)}\n\nHow to work:\n{how}\n"
         "Do not add anything to the cart in this phase."
     )
     with AgentBrowser() as browser:
-        emit("browser", "Opened the browser — searching the web")
+        if start_url:
+            emit("browser", "Opening Amazon.in results")
+            try:
+                browser.page.goto(start_url, wait_until="domcontentloaded")
+                browser.settle()
+            except (PlaywrightError, PlaywrightTimeout):
+                pass  # the agent loop will notice the empty page and navigate itself
+        else:
+            emit("browser", "Opened the browser, searching the web")
         return BrowsingAgent(
             browser, goal, RESEARCH_TOOLS, max_steps=s.agent_research_steps, emit=emit, ask_user=ask_user,
-            max_products=8,
+            max_products=n, category=requirements.get("category", ""),
         ).run()
 
 

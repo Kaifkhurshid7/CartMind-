@@ -33,3 +33,21 @@ def test_recommendation_is_grounded_without_llm():
     assert rec["product"]["price"] <= 5000
     assert rec["reasons"] and rec["disadvantages"]
     assert all(a["id"] != rec["product"]["id"] for a in rec["alternatives"])
+
+
+def test_products_without_a_category_can_be_scored_and_recommended():
+    """Browsing-agent products come from arbitrary sites and product types (a book has no 'laptop' logic)."""
+    req = normalize({"category": "paperback of atomic habits", "budget": {"maximum": 500}})
+    base = {"brand": "Penguin", "currency": "INR", "specs": {}, "available": True, "live": True, "via_agent": True,
+            "features": [], "reviews": [], "source": "amazon.in"}
+    products = [
+        {**base, "id": "web-1", "name": "Atomic Habits (English)", "price": 399.0, "rating": 4.6, "review_count": 90000,
+         "url": "https://www.amazon.in/dp/B0A"},
+        {**base, "id": "web-2", "name": "Atomic Habits (Hindi)", "price": 277.0, "rating": 4.5, "review_count": 5100,
+         "url": "https://www.amazon.in/dp/B0B"},
+    ]
+    assert all("category" not in p for p in products)
+    scored = score_products(products, req)
+    assert [p["suitability"] for p in scored] == sorted((p["suitability"] for p in scored), reverse=True)
+    rec = build_recommendation(scored[0], scored, req)
+    assert rec["product"]["id"] in {"web-1", "web-2"} and rec["reasons"]
