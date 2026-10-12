@@ -25,7 +25,7 @@ from playwright.sync_api import sync_playwright
 
 from app.config import get_settings
 from app.llm.gemini import LLMUnavailable, get_llm
-from app.tools.amazon_tool import parse_title_specs, run_amazon_shopping
+from app.tools.amazon_tool import parse_title_specs, run_amazon_shopping, signed_in
 from app.utils.logging import get_logger
 
 log = get_logger("browser-agent")
@@ -753,7 +753,11 @@ def shop_with_agent(
     asin = _amazon_asin(product.get("url", ""))
     if asin and s.agent_fast_path and host_of(product["url"]).endswith("amazon.in"):
         emit("browser", "Adding to cart with the built-in Amazon.in routine")
-        fast = run_amazon_shopping(session_id, {**product, "asin": asin}, emit, accept_price_change, persistent=True)
+        fast = run_amazon_shopping(
+            session_id, {**product, "asin": asin}, emit, accept_price_change, persistent=True, ask_user=ask_user
+        )
+        if fast["code"] == "cancelled":
+            return fast
         if fast["ok"] or fast["code"] in ("unavailable", "price_changed"):
             return fast
         emit("browser", "The built-in routine could not finish, handing over to the AI agent")
@@ -779,13 +783,15 @@ def shop_with_agent(
                 else:
                     emit("browser", "Checking the cart to confirm")
                     ok, _ = _in_cart(browser, product, cart_url)
+                    account = signed_in(browser.page) if host.endswith("amazon.in") else None
                     if ok:
                         emit("browser", "Cart verified — stopping before payment")
                         result.update(
                             ok=True, code="added", message=f"{product['name'][:80]} has been added to your cart.",
                             cart_state={"items": [{"product_id": product["id"], "name": product["name"],
                                                    "price": outcome.observed_price or expected}],
-                                        "total": outcome.observed_price or expected, "url": cart_url},
+                                        "total": outcome.observed_price or expected, "url": cart_url,
+                                        "signed_in": account},
                         )
                     else:
                         result.update(code="failed", message="I clicked Add to Cart but couldn't find the item in the cart.")
