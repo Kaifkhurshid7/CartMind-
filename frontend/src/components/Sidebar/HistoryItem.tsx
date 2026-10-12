@@ -44,8 +44,8 @@ export default function HistoryItem({ session, title, active, onNavigate, onRena
 
   return (
     <div
-      className={`group flex min-h-10 items-center rounded-control transition-colors duration-fast ${
-        active ? 'bg-active-nav text-fg' : 'text-fg-2 hover:bg-hover-nav hover:text-fg'
+      className={`group flex min-h-11 items-center transition-colors duration-fast ${
+        active ? 'bg-hover-nav text-fg' : 'text-fg-2 hover:bg-hover hover:text-fg'
       }`}
     >
       <Link
@@ -53,7 +53,7 @@ export default function HistoryItem({ session, title, active, onNavigate, onRena
         onClick={onNavigate}
         title={`${title} · ${timeAgo(session.created_at)}`}
         aria-current={active ? 'page' : undefined}
-        className={`flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-control px-3 py-1.5 text-[13.5px] leading-[18px] focus-ring ${active ? 'font-medium' : ''}`}
+        className={`flex min-h-11 min-w-0 flex-1 items-center gap-2 px-3 py-2 text-[13.5px] leading-[18px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/30 ${active ? 'font-medium' : ''}`}
       >
         <span className="line-clamp-2 min-w-0 flex-1 break-words">{title}</span>
         <span className="group-focus-within:hidden group-hover:hidden">

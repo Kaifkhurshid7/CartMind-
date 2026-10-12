@@ -20,6 +20,8 @@ interface Props {
 export default function Composer({ value, onChange, onSubmit, prompts, placeholder, disabled, sending, autoFocus }: Props) {
   const ref = useRef<HTMLTextAreaElement>(null)
   const [library, setLibrary] = useState(false)
+  const [listMax, setListMax] = useState(256)
+  const formRef = useRef<HTMLFormElement>(null)
   const [improving, setImproving] = useState(false)
   const [note, setNote] = useState<string | null>(null)
   const closeLibrary = useCallback(() => setLibrary(false), [])
@@ -42,6 +44,13 @@ export default function Composer({ value, onChange, onSubmit, prompts, placehold
     }
   }
 
+  // Fit the ideas list into the space above the composer (below the 48px top bar).
+  function toggleLibrary() {
+    const top = formRef.current?.getBoundingClientRect().top ?? 400
+    setListMax(Math.max(120, Math.min(256, top - 48 - 16 - 108)))
+    setLibrary((o) => !o)
+  }
+
   async function improve() {
     if (improving) return
     if (!value.trim()) {
@@ -60,10 +69,11 @@ export default function Composer({ value, onChange, onSubmit, prompts, placehold
   }
 
   return (
-    <form onSubmit={submit} className="relative rounded-card border border-line bg-white p-3 shadow-composer transition-colors duration-fast focus-within:border-line-strong focus-within:ring-2 focus-within:ring-primary/5">
-      <Popover open={library} onClose={closeLibrary} className="bottom-full left-6 mb-2">
+    <form ref={formRef} onSubmit={submit} className="relative rounded-card border border-line bg-white p-3 shadow-composer transition-colors duration-fast focus-within:border-line-strong focus-within:ring-2 focus-within:ring-primary/5">
+      <Popover open={library} onClose={closeLibrary} className="bottom-full left-0 mb-2">
         <PromptLibrary
           prompts={prompts}
+          maxListHeight={listMax}
           onPick={(p) => {
             onChange(p)
             setLibrary(false)
@@ -89,7 +99,7 @@ export default function Composer({ value, onChange, onSubmit, prompts, placehold
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => setLibrary((o) => !o)}
+            onClick={toggleLibrary}
             aria-haspopup="dialog"
             aria-expanded={library}
             className={`inline-flex items-center gap-2 rounded-control border px-3 py-1.5 text-[13px] font-medium transition-colors duration-fast focus-ring ${
@@ -97,7 +107,7 @@ export default function Composer({ value, onChange, onSubmit, prompts, placehold
             }`}
           >
             <ListIcon width={15} height={15} />
-            Prompt Library
+            Shopping ideas
           </button>
           <button
             type="button"
