@@ -256,6 +256,12 @@ def shopping_node(state: ShoppingState) -> dict:
 
     if result["ok"]:
         message = f"{product['name']} has been added to your cart. I stopped before payment — you can check out yourself."
+        if (result.get("cart_state") or {}).get("signed_in") is False:
+            message += (
+                " Note: you were not signed in to Amazon in the CartMind browser window, so this went into a guest cart "
+                "that only exists in that window. Run `python login.py` in the backend folder, sign in to Amazon, "
+                "then add it again to see it in your account's cart."
+            )
         sessions.update_session(
             sid, status="completed", current_step="done", cart_state=result["cart_state"],
             browser_state=result["browser_state"], error=None,

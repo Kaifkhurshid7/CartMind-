@@ -587,3 +587,11 @@ CartMind operates real shopping sites at a human pace, intended for **personal u
 **CartMind**: understand, research, reason, recommend, ask permission, act, verify, report.
 
 </div>
+
+## Troubleshooting
+
+**"Added to cart" but my normal browser shows an empty cart.** CartMind operates its own Chrome window with its own
+profile (`backend/browser_profile`), not the Chrome you use every day. Until you are signed in to Amazon *in that
+window*, items go into a guest cart that only exists there. Run `python login.py` in `backend`, sign in to Amazon, and
+close the window; later runs then use your account's cart, visible from any browser. CartMind also pauses and asks you
+to sign in if it sees the window is signed out.
