@@ -1,28 +1,34 @@
-import { FormEvent, KeyboardEvent, useEffect, useRef } from 'react'
-import type { Health } from '../../hooks/useHealth'
-import { PlusCircle, SendIcon, SparkIcon, StoreIcon } from '../icons'
+import { FormEvent, KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react'
+import { errorMessage } from '../../services/api'
+import { improvePrompt } from '../../services/shopping'
+import { ArrowUp, BagIcon, SparkIcon } from '../icons'
+import Popover from '../ui/Popover'
+import PromptLibrary from './PromptLibrary'
 
 interface Props {
   value: string
   onChange: (v: string) => void
   onSubmit: () => void
-  onPlus?: () => void
-  health: Health | null
+  prompts: string[]
   placeholder?: string
   disabled?: boolean
   sending?: boolean
   autoFocus?: boolean
 }
 
-/** The rounded message box: source pill on top, white input with model chip + Send below. */
-export default function Composer({ value, onChange, onSubmit, onPlus, health, placeholder, disabled, sending, autoFocus }: Props) {
+/** Rounded message box with a prompt library, prompt improver and a round send button. */
+export default function Composer({ value, onChange, onSubmit, prompts, placeholder, disabled, sending, autoFocus }: Props) {
   const ref = useRef<HTMLTextAreaElement>(null)
+  const [library, setLibrary] = useState(false)
+  const [improving, setImproving] = useState(false)
+  const [note, setNote] = useState<string | null>(null)
+  const closeLibrary = useCallback(() => setLibrary(false), [])
 
   useEffect(() => {
     const el = ref.current
     if (!el) return
     el.style.height = 'auto'
-    el.style.height = `${Math.min(el.scrollHeight, 160)}px`
+    el.style.height = `${Math.min(el.scrollHeight, 168)}px`
   }, [value])
 
   const submit = (e?: FormEvent) => {
@@ -36,52 +42,79 @@ export default function Composer({ value, onChange, onSubmit, onPlus, health, pl
     }
   }
 
-  const model = health ? (health.llm_model ?? 'Rule-based mode') : '…'
+  async function improve() {
+    if (!value.trim() || improving) return
+    setImproving(true)
+    setNote(null)
+    try {
+      onChange(await improvePrompt(value.trim()))
+    } catch (e) {
+      setNote(errorMessage(e))
+    } finally {
+      setImproving(false)
+    }
+  }
 
   return (
-    <form onSubmit={submit} className="rounded-2xl border border-zinc-200/70 bg-zinc-100/80 p-2 shadow-sm">
-      <div className="flex items-center justify-between px-1.5 pb-2 pt-0.5">
-        <button type="button" className="text-zinc-400 hover:text-zinc-700" aria-label="Start a new search" title="New search" onClick={onPlus}>
-          <PlusCircle />
-        </button>
-        <span
-          className="inline-flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 shadow-[0_0_0_1px_rgba(0,0,0,0.06)]"
-          title={health?.shopping_mode === 'live' ? 'Shopping on the live site' : 'Offline demo store'}
-        >
-          <StoreIcon width={14} height={14} />
-          {health?.site ?? 'Store'}
-        </span>
-      </div>
-
-      <div className="rounded-xl bg-white px-4 pb-2.5 pt-3 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
-        <textarea
-          ref={ref}
-          rows={1}
-          value={value}
-          autoFocus={autoFocus}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyDown={onKey}
-          placeholder={placeholder}
-          aria-label="Message"
-          className="block w-full resize-none bg-transparent text-[15px] leading-6 text-zinc-900 outline-none placeholder:text-zinc-400 disabled:cursor-not-allowed"
+    <form onSubmit={submit} className="relative rounded-2xl border border-zinc-200 bg-white p-4 shadow-[0_2px_12px_rgba(0,0,0,0.05)]">
+      <Popover open={library} onClose={closeLibrary} className="bottom-full left-6 mb-2">
+        <PromptLibrary
+          prompts={prompts}
+          onPick={(p) => {
+            onChange(p)
+            setLibrary(false)
+            ref.current?.focus()
+          }}
         />
-        <div className="mt-3 flex items-center justify-between">
-          <span className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs text-zinc-700">
-            <SparkIcon width={13} height={13} className="text-amber-600" />
-            {model}
-          </span>
+      </Popover>
+
+      <textarea
+        ref={ref}
+        rows={1}
+        value={value}
+        autoFocus={autoFocus}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={onKey}
+        placeholder={placeholder ?? 'Ask me anything'}
+        aria-label="Message"
+        className="block min-h-[28px] w-full resize-none bg-transparent text-[15px] leading-7 text-zinc-900 outline-none placeholder:text-zinc-400 disabled:cursor-not-allowed"
+      />
+
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <button
-            type="submit"
-            disabled={disabled || sending || !value.trim()}
-            className="inline-flex items-center gap-2 rounded-xl bg-zinc-900 px-3.5 py-2 text-sm font-medium text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-40"
+            type="button"
+            onClick={() => setLibrary((o) => !o)}
+            aria-haspopup="dialog"
+            aria-expanded={library}
+            className={`inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-[13px] font-medium transition ${
+              library ? 'border-zinc-300 bg-zinc-100 text-zinc-900' : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
+            }`}
           >
-            <SendIcon width={15} height={15} />
-            Send
-            <kbd className="rounded bg-white/20 px-1.5 text-[11px] leading-5">↵</kbd>
+            <BagIcon width={15} height={15} />
+            Prompt Library
+          </button>
+          <button
+            type="button"
+            onClick={improve}
+            disabled={!value.trim() || improving || disabled}
+            className="inline-flex items-center gap-2 rounded-xl px-3 py-1.5 text-[13px] font-medium text-zinc-600 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <SparkIcon width={15} height={15} className={improving ? 'animate-pulse' : ''} />
+            {improving ? 'Improving…' : 'Improve Prompt'}
           </button>
         </div>
+        <button
+          type="submit"
+          aria-label="Send message"
+          disabled={disabled || sending || !value.trim()}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-30"
+        >
+          <ArrowUp width={18} height={18} />
+        </button>
       </div>
+      {note && <p className="mt-2 text-xs text-rose-600">{note}</p>}
     </form>
   )
 }
