@@ -168,10 +168,17 @@ def normalize(req: dict | None) -> dict:
         "preferences": [str(p) for p in (req.get("preferences") or [])],
         "priorities": [str(p).lower() for p in (req.get("priorities") or [])],
         "location": req.get("location") or "India",
+        "search_text": str(req.get("search_text") or "")[:300],
     }
 
 
 def extract_requirements(query: str) -> dict:
+    result = _extract(query)
+    result["search_text"] = query.strip()[:300]
+    return result
+
+
+def _extract(query: str) -> dict:
     try:
         data = get_llm().invoke_json(prompts.EXTRACT_REQUIREMENTS.format(query=query), system=prompts.SYSTEM)
         if isinstance(data, dict):
@@ -224,7 +231,7 @@ def parse_requirement(value: Any) -> tuple[str, Any] | None:
     return ("eq" if text.endswith("only") else "min", number)
 
 
-def check_spec(product: dict, name: str, value: Any) -> tuple[bool, str]:
+def check_spec(product: dict, name: str, value: Any, strict: bool = True) -> tuple[bool, str]:
     """Does `product` satisfy one mandatory requirement? Unknown specs pass (can't be judged)."""
     key = spec_key(name)
     spec = product.get("specs", {})
@@ -233,7 +240,7 @@ def check_spec(product: dict, name: str, value: Any) -> tuple[bool, str]:
         return True, ""
     if key not in spec:
         # A scraped listing that never states a mandatory spec is not trusted to have it.
-        if product.get("live") and key in LIVE_STRICT_KEYS:
+        if strict and product.get("live") and key in LIVE_STRICT_KEYS:
             return False, f"{name} not stated in the listing"
         return True, ""
     kind, wanted = parsed

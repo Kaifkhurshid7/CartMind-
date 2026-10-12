@@ -43,6 +43,8 @@ def _display_score(display: str) -> float:
 def _rating_score(p: dict) -> float:
     # Bayesian average so 4.7★ from 12 reviews doesn't beat 4.4★ from 8,000.
     n = p.get("review_count", 0)
+    if n == 0:
+        return 0.4  # unrated: below a typical rated product
     return ((p["rating"] * n + 4.0 * 100) / (n + 100)) / 5.0
 
 
@@ -57,18 +59,19 @@ def criteria_scores(p: dict, peers: list[dict], budget: float | None) -> dict[st
         out["battery"] = min(1.0, s["battery_hours"] / top_battery)
     elif "battery_mah" in s:
         out["battery"] = min(1.0, s["battery_mah"] / 6000)
-    if p["category"] == "laptop":
+    category = p.get("category", "")
+    if category == "laptop":
         gpu_bonus = 0.1 if "nvidia" in str(s.get("gpu", "")).lower() else 0.0
         out["performance"] = min(
             1.0, 0.45 * _cpu_score(s.get("processor", "")) + 0.3 * min(s.get("ram_gb", 8) / 16, 1.0)
             + 0.15 * min(s.get("storage_gb", 256) / 512, 1.0) + gpu_bonus,
         )
         out["display"] = _display_score(s.get("display", ""))
-    elif p["category"] == "phone":
+    elif category == "phone":
         out["performance"] = min(1.0, 0.6 * min(s.get("ram_gb", 4) / 8, 1.0) + 0.4 * min(s.get("storage_gb", 64) / 256, 1.0))
         out["camera"] = min(1.0, s.get("camera_mp", 12) / 108) * 0.5 + 0.5 * out["rating"]
         out["display"] = _display_score(s.get("display", ""))
-    elif p["category"] == "headphones":
+    elif category == "headphones":
         out["features"] = min(1.0, len(p.get("features", [])) / 4) * 0.6 + (0.4 if s.get("anc") else 0.0)
     return out
 
@@ -95,7 +98,8 @@ def score_products(products: list[dict], requirements: dict) -> list[dict]:
     out = []
     for p, crit in scored:
         total = sum(weights[k] * crit[k] for k in weights)
-        out.append({**p, "suitability": round(total * 100, 1),
+        penalty = min(30, 8 * len(p.get("warnings", [])))
+        out.append({**p, "suitability": round(max(0.0, total * 100 - penalty), 1),
                     "score_breakdown": {k: round(crit[k] * 100) for k in weights}})
     out.sort(key=lambda x: -x["suitability"])
     return out
