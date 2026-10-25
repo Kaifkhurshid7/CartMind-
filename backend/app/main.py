@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import chat, health, prompt, shopping
 from app.config import get_settings
 from app.database.database import init_db
+from app.services import sessions
 from app.store.routes import router as store_router
 from app.utils.logging import setup_logging
 
@@ -14,6 +15,7 @@ from app.utils.logging import setup_logging
 async def lifespan(_: FastAPI):
     setup_logging()
     init_db()
+    sessions.fail_interrupted()
     yield
 
 
