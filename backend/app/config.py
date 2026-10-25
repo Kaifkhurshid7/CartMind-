@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     llm_min_interval_seconds: float = 2.5
     # Longest a single call will wait for a rate-limited model to recover before giving up.
     llm_max_wait_seconds: int = 90
+    # A single model request that takes longer than this is abandoned (and the next model/key is tried),
+    # so a stalled connection can never freeze a shopping run.
+    llm_request_timeout_seconds: int = 30
 
     groq_api_key: str = ""
     groq_api_key_2: str = ""
