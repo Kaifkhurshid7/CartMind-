@@ -431,7 +431,7 @@ The session is stored in `backend/browser_profile/` and reused by the agent.
 
 ```bash
 # terminal 1: backend
-cd backend && uvicorn app.main:app --port 8000
+cd backend && uvicorn app.main:app --port 8000 --timeout-graceful-shutdown 3
 
 # terminal 2: frontend
 cd frontend && npm install && npm run dev        # http://localhost:5173
