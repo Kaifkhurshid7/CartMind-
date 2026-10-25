@@ -26,6 +26,7 @@ from playwright.sync_api import sync_playwright
 from app.config import get_settings
 from app.llm.gemini import LLMUnavailable, get_llm
 from app.tools.amazon_tool import parse_title_specs, run_amazon_shopping, signed_in
+from app.tools.profile_lock import PROFILE_LOCK
 from app.utils.logging import get_logger
 
 log = get_logger("browser-agent")
@@ -243,6 +244,14 @@ class AgentBrowser:
         self.text_cache = ""
 
     def __enter__(self) -> "AgentBrowser":
+        PROFILE_LOCK.acquire()  # one browser per profile; a second run waits here instead of failing
+        try:
+            return self._open()
+        except BaseException:
+            PROFILE_LOCK.release()
+            raise
+
+    def _open(self) -> "AgentBrowser":
         self._pw = sync_playwright().start()
         common = dict(
             user_data_dir=self.settings.browser_profile_dir,
@@ -263,11 +272,14 @@ class AgentBrowser:
         return self
 
     def __exit__(self, *exc) -> None:
-        for step in (lambda: self._ctx.close(), lambda: self._pw.stop()):
-            try:
-                step()
-            except Exception:  # noqa: BLE001
-                pass
+        try:
+            for step in (lambda: self._ctx.close(), lambda: self._pw.stop()):
+                try:
+                    step()
+                except Exception:  # noqa: BLE001
+                    pass
+        finally:
+            PROFILE_LOCK.release()
 
     def _on_new_page(self, page: Page) -> None:  # product links often open in a new tab
         self.page = page

@@ -21,6 +21,20 @@ def create_session(query: str) -> str:
     return session_id
 
 
+def fail_interrupted() -> int:
+    """Mark runs that were in flight when the server stopped as failed (their worker thread no longer exists)."""
+    in_flight = ("started", "running", "executing")
+    count = 0
+    with SessionLocal() as db:
+        for row in db.scalars(select(ShoppingSession).where(ShoppingSession.status.in_(in_flight))).all():
+            row.status = "failed"
+            row.current_step = "interrupted"
+            row.state = {**(row.state or {}), "error": "The server restarted while this search was running. Please start it again."}
+            count += 1
+        db.commit()
+    return count
+
+
 def session_exists(session_id: str) -> bool:
     with SessionLocal() as db:
         return db.get(ShoppingSession, session_id) is not None

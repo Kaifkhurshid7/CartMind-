@@ -42,7 +42,7 @@ def is_model_unavailable(exc: Exception) -> bool:
 
 def is_transient_error(exc: Exception) -> bool:
     text = f"{type(exc).__name__} {exc}".lower()
-    return any(m in text for m in ("503", "unavailable", "high demand", "overloaded", "timeout", "timed out", "deadline", "500"))
+    return any(m in text for m in ("503", "unavailable", "high demand", "overloaded", "timeout", "timed out", "deadline", "cancelled", "500"))
 
 
 class LLMUnavailable(RuntimeError):
@@ -84,7 +84,8 @@ class LLMClient:
             from langchain_google_genai import ChatGoogleGenerativeAI
 
             self._models[cache_key] = ChatGoogleGenerativeAI(
-                model=model, google_api_key=key, temperature=temperature, max_retries=1
+                model=model, google_api_key=key, temperature=temperature, max_retries=1,
+                timeout=float(getattr(self.settings, "llm_request_timeout_seconds", 45)),
             )
         return self._models[cache_key]
 
@@ -92,7 +93,10 @@ class LLMClient:
         from langchain_groq import ChatGroq
 
         key = key or (self.groq_keys[0] if self.groq_keys else "")
-        return ChatGroq(model=self.settings.groq_model, api_key=key, temperature=temperature)
+        return ChatGroq(
+            model=self.settings.groq_model, api_key=key, temperature=temperature,
+            request_timeout=float(getattr(self.settings, "llm_request_timeout_seconds", 45)),
+        )
 
     @staticmethod
     def _messages(prompt: str, system: str | None):
@@ -109,6 +113,26 @@ class LLMClient:
         if isinstance(content, list):  # content blocks
             return "".join(b if isinstance(b, str) else b.get("text", "") for b in content)
         return str(content)
+
+    def slot_status(self) -> list[dict]:
+        """Readable view of every (key, model) slot: ready, or how long it is parked. Keys are shown by position only."""
+        now = time.monotonic()
+        out = []
+        for model in self.models:
+            for i, key in enumerate(self.keys.all_keys(), start=1):
+                with self._lock:
+                    until = self._cooling.get((key, model))
+                wait = max((until or 0) - now, 0.0)
+                if self.keys.is_cooling(key):
+                    state = "key refused or over quota"
+                elif wait > 0:
+                    state = f"parked {int(wait)}s"
+                else:
+                    state = "ready"
+                out.append({"model": model, "key": f"key {i}", "state": state})
+        for i, _ in enumerate(self.groq_keys, start=1):
+            out.append({"model": self.settings.groq_model, "key": f"groq {i}", "state": "ready"})
+        return out
 
     # ---- slot bookkeeping -----------------------------------------------------------------------
 
@@ -167,8 +191,12 @@ class LLMClient:
                         log.warning("Gemini refused this key/project (%s); parking the key for 6h", _short(exc)[:100])
                         self.keys.cool_down(key, 6 * HOURS)
                     elif is_transient_error(exc):
-                        log.warning("Gemini %s is busy (%s); trying the next option", model, _short(exc)[:80])
-                        self._park(key, model, TRANSIENT_COOLDOWN)
+                        # The model itself is overloaded or stalled, so every key would see the same thing:
+                        # park it for all keys instead of paying the wait once per key.
+                        log.warning("Gemini %s is busy (%s); trying the next model", model, _short(exc)[:80])
+                        for k in self.keys.all_keys():
+                            self._park(k, model, TRANSIENT_COOLDOWN)
+                        break
                     else:
                         log.warning("Gemini call failed: %s", _short(exc))
                         self._park(key, model, OTHER_COOLDOWN)
