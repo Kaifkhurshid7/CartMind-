@@ -18,5 +18,6 @@ def health():
         "shopping_mode": settings.shopping_mode,
         "agent_ready": settings.shopping_mode == "agent" and llm.available and llm.last_error is None,
         "llm_error": llm.last_error,
+        "llm_slots": llm.slot_status() if llm.available else [],
         "site": {"agent": "Web: Google, Amazon, Flipkart", "live": "Amazon.in"}.get(settings.shopping_mode, "Demo store"),
     }

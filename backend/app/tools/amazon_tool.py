@@ -17,6 +17,7 @@ from playwright.sync_api import TimeoutError as PlaywrightTimeout
 from playwright.sync_api import sync_playwright
 
 from app.config import get_settings
+from app.tools.profile_lock import PROFILE_LOCK
 from app.utils.logging import get_logger
 
 log = get_logger("amazon")
@@ -197,6 +198,22 @@ class _Session:
         self.persistent = persistent
 
     def __enter__(self) -> Page:
+        self._locked = False
+        if self.persistent:
+            PROFILE_LOCK.acquire()  # the persistent profile can only be open once
+            self._locked = True
+        try:
+            return self._open()
+        except BaseException:
+            self._release()
+            raise
+
+    def _release(self) -> None:
+        if self._locked:
+            self._locked = False
+            PROFILE_LOCK.release()
+
+    def _open(self) -> Page:
         self._pw = sync_playwright().start()
         s = get_settings()
         if self.persistent:
@@ -219,11 +236,14 @@ class _Session:
         return self.page
 
     def __exit__(self, *exc) -> None:
-        for step in (self._browser.close, self._pw.stop):
-            try:
-                step()
-            except Exception:  # noqa: BLE001
-                pass
+        try:
+            for step in (self._browser.close, self._pw.stop):
+                try:
+                    step()
+                except Exception:  # noqa: BLE001
+                    pass
+        finally:
+            self._release()
 
 
 def _goto(page: Page, url: str, emit=None) -> None:
